@@ -1,0 +1,50 @@
+target C
+
+reactor compute {
+    input current_state: double[4];
+    input globalT: double;
+    input globalI: double;
+    input globalE: double;
+
+    output error: double;
+    output integral: double;
+    output global_target: double;
+    output force: double;
+
+    state g_target: double;
+    state global_integral: double;
+    state global_error: double;
+    state last_activation_time: time;
+    state derivative: double;
+
+    reaction(globalT) {=
+        global_target = globalT;
+    =}
+    reaction(globalI) {=
+        global_integral = globalI;
+    =}
+    reaction(globalE) {=
+        global_error = globalE;
+    =}
+    reaction(globalT) {=
+        g_target = globalT;
+    =}
+
+    reaction(current_state) -> error, integral, global_target, force {=
+        double Kp = current_state[0];
+        double Ki = current_state[1];
+        double Kd = current_state[2];
+        double measurement = current_state[3];
+
+        double err = g_target - measurement;
+        double integ = g_integral + err;
+        double deriv = err - global_error;
+
+        double u = Kp * err + Ki * integ + Kd * deriv;
+
+        lf_set(error, err);
+        lf_set(integral, integ);
+        lf_set(force, u);
+        lf_set(global_target, g_target);
+    =}
+}

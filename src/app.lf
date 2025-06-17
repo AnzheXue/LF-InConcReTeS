@@ -1,0 +1,41 @@
+target C
+
+import reader from "reader.lf";
+import compute from "compute.lf";
+import writer from "writer.lf";
+
+reactor App {
+    input read_state: double[4];
+    input input_globalI: double;
+    input input_globalT: double;
+    input input_globalE: double;
+
+    output output_target: double;
+    output output_force: double;
+    output output_integral: double;
+    output output_error: double;
+
+    r = new reader();
+    c = new compute();
+    w = new writer();
+
+    read_state -> r.read_state;
+    input_globalI -> r.input_globalI;
+    input_globalT -> r.input_globalT;
+    input_globalE -> r.input_globalE;
+
+    r.out_state -> c.current_state;
+    r.output_globalI -> c.globalI;
+    r.output_globalT -> c.globalT;
+    r.output_globalE -> c.globalE;
+
+    c.force -> w.force;
+    c.integral -> w.integral;
+    c.error -> w.error;
+    c.global_target -> w.global_target;
+
+    w.output_target -> output_target;
+    w.output_force -> output_force;
+    w.output_integral -> output_integral;
+    w.output_error -> output_error;
+}

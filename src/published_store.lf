@@ -1,0 +1,23 @@
+target C
+
+reactor published_store {
+    input input_globalT: tuple;
+    input input_globalI: tuple;
+    input input_globalE: tuple;
+    
+    output output_globalT: double;
+    output output_globalI: double;
+    output output_globalE: double;
+
+    reaction(input_globalT) -> output_globalT{=
+        lf_set(output_globalT, input_globalT.value);
+    =}
+
+    reaction(input_globalI) -> output_globalI {=
+        lf_set(output_globalI, input_globalI.value);
+    =}
+
+    reaction(input_globalE) -> output_globalE {=
+        lf_set(output_globalE, input_globalE.value);
+    =}
+}

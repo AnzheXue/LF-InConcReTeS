@@ -1,0 +1,33 @@
+target C
+
+reactor reader {
+    // timer t(0 ms, 100 ms);
+    // logical action read;
+    input read_state: double[4];
+    input input_globalT: double;
+    input input_globalI: double;
+    input input_globalE: double;
+
+    output out_state: double[4];
+    output output_globalT: double;
+    output output_globalI: double;
+    output output_globalE: double;
+
+    reaction(read_state) -> out_state {=
+        for (int i = 0; i < 4; i++) {
+            lf_set(read_state[i], state_in[i]);
+        }
+    =}
+
+    reaction(input_globalT) -> output_globalT{=
+        lf_set(output_globalT, input_globalT);
+    =}
+
+    reaction(input_globalI) -> output_globalI {=
+        lf_set(output_globalI, input_globalI);
+    =}
+
+    reaction(input_globalE) -> output_globalE {=
+        lf_set(output_globalE, input_globalE);
+    =}
+}

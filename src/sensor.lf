@@ -1,0 +1,14 @@
+target C
+
+reactor Sensor {
+    timer t(0, 100 ms);
+    output out: double[4];
+    state in: double[4];
+    physical action read;
+
+    reaction(t) -> out {=
+        for (int i = 0; i < output_width; i++) {
+            lf_set(out[i], self->in[i]);
+        }
+    =}
+}

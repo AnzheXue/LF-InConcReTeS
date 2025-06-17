@@ -1,0 +1,80 @@
+target C
+
+import EIGtree0 from "EIGtree0.lf";
+import EIGtree1 from "EIGtree1.lf";
+import EIGtree2 from "EIGtree2.lf";
+import EIGtreeReduction from "EIGtreeReduction.lf";
+
+preamble {=
+    struct tuple {
+        char key[32 + 1];
+        char value[64 + 1];
+        uint64_t time;
+    };
+=}
+
+reactor EIGtree {
+    input store_in: tuple;
+    input p1_in: tuple;
+    input p2_in: tuple;
+    input p3_in: tuple;
+    input p1p2_in: tuple;
+    input p1p3_in: tuple;
+    input p2p1_in: tuple;
+    input p2p3_in: tuple;
+    input p3p1_in: tuple;
+    input p3p2_in: tuple;
+
+    output round0_out: tuple;
+    output p0p1_out: tuple;
+    output p0p2_out: tuple;
+    output p0p3_out: tuple;
+    // output p0p1p2_out: tuple;
+    // output p0p1p3_out: tuple;
+    // output p0p2p1_out: tuple;
+    // output p0p2p3_out: tuple;
+    // output p0p3p1_out: tuple;
+    // output p0p3p2_out: tuple;
+
+    output final_out: tuple;
+
+    et0 = new EIGtree0();
+    et1 = new EIGtree1();
+    et2 = new EIGtree2();
+    etr = new EIGtreeReduction();
+
+    store_in -> et0.store_in;
+    p1_in -> et1.p1_in;
+    p2_in -> et1.p2_in;
+    p3_in -> et1.p3_in;
+    p1p2_in -> et2.p1p2_in;
+    p1p3_in -> et2.p1p3_in;
+    p2p1_in -> et2.p2p1_in;
+    p2p3_in -> et2.p2p3_in;
+    p3p1_in -> et2.p3p1_in;
+    p3p2_in -> et2.p3p2_in;
+
+    et0.round0_out -> etr.round0_in;
+    et1.p0p1_out -> etr.p0p1_in;
+    et1.p0p2_out -> etr.p0p2_in;
+    et1.p0p3_out -> etr.p0p3_in;
+    et2.p0p1p2_out -> etr.p0p1p2_in;
+    et2.p0p1p3_out -> etr.p0p1p3_in;
+    et2.p0p2p1_out -> etr.p0p2p1_in;
+    et2.p0p2p3_out -> etr.p0p2p3_in;
+    et2.p0p3p1_out -> etr.p0p3p1_in;
+    et2.p0p3p2_out -> etr.p0p3p2_in;
+
+    etr.final_out -> final_out;
+
+    et0.round0_out -> round0_out;
+    et1.p0p1_out -> p0p1_out;
+    et1.p0p2_out -> p0p2_out;
+    et1.p0p3_out -> p0p3_out;
+    // et2.p0p1p2_out -> p0p1p2_out;
+    // et2.p0p1p3_out -> p0p1p3_out;
+    // et2.p0p2p1_out -> p0p2p1_out;
+    // et2.p0p2p3_out -> p0p2p3_out;
+    // et2.p0p3p1_out -> p0p3p1_out;
+    // et2.p0p3p2_out -> p0p3p2_out;
+}

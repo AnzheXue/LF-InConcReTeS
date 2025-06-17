@@ -1,0 +1,166 @@
+target C
+
+import App from "app.lf";
+import published_store from "published_store.lf";
+import unpublished_store from "unpublished_store.lf";
+import EIGtree from "EIGtree.lf";
+
+reactor pi2 {
+    input sensor_data: double[4];
+
+    input e1_p1_in: tuple;
+    input e1_p2_in: tuple;
+    input e1_p3_in: tuple;
+    input e1_p1p2_in: tuple;
+    input e1_p1p3_in: tuple;
+    input e1_p2p1_in: tuple;
+    input e1_p2p3_in: tuple;
+    input e1_p3p1_in: tuple;
+    input e1_p3p2_in: tuple;
+
+    input e2_p1_in: tuple;
+    input e2_p2_in: tuple;
+    input e2_p3_in: tuple;
+    input e2_p1p2_in: tuple;
+    input e2_p1p3_in: tuple;
+    input e2_p2p1_in: tuple;
+    input e2_p2p3_in: tuple;
+    input e2_p3p1_in: tuple;
+    input e2_p3p2_in: tuple;
+
+    input e3_p1_in: tuple;
+    input e3_p2_in: tuple;
+    input e3_p3_in: tuple;
+    input e3_p1p2_in: tuple;
+    input e3_p1p3_in: tuple;
+    input e3_p2p1_in: tuple;
+    input e3_p2p3_in: tuple;
+    input e3_p3p1_in: tuple;
+    input e3_p3p2_in: tuple;
+
+    output e1_round0_out: tuple;
+    output e1_p0p1_out: tuple;
+    output e1_p0p2_out: tuple;
+    output e1_p0p3_out: tuple;
+    // output e1_p0p1p2_out: tuple;
+    // output e1_p0p1p3_out: tuple;
+    // output e1_p0p2p1_out: tuple;
+    // output e1_p0p2p3_out: tuple;
+    // output e1_p0p3p1_out: tuple;
+    // output e1_p0p3p2_out: tuple;
+
+    output e2_round0_out: tuple;
+    output e2_p0p1_out: tuple;
+    output e2_p0p2_out: tuple;
+    output e2_p0p3_out: tuple;
+    // output e2_p0p1p2_out: tuple;
+    // output e2_p0p1p3_out: tuple;
+    // output e2_p0p2p1_out: tuple;
+    // output e2_p0p2p3_out: tuple;
+    // output e2_p0p3p1_out: tuple;
+    // output e2_p0p3p2_out: tuple;
+
+    output e3_round0_out: tuple;
+    output e3_p0p1_out: tuple;
+    output e3_p0p2_out: tuple;
+    output e3_p0p3_out: tuple;
+    // output e3_p0p1p2_out: tuple;
+    // output e3_p0p1p3_out: tuple;
+    // output e3_p0p2p1_out: tuple;
+    // output e3_p0p2p3_out: tuple;
+    // output e3_p0p3p1_out: tuple;
+    // output e3_p0p3p2_out: tuple;
+
+    output force: double;
+
+    a = new App();
+    ps = new published_store();
+    us = new unpublished_store();
+    e1 = new EIGtree();
+    e2 = new EIGtree();
+    e3 = new EIGtree();
+
+    sensor_data -> a.read_state;
+    a.output_force -> force;
+
+    a.output_error -> us.error;
+    a.output_integral -> us.integral;
+    a.output_target -> us.global_target;
+
+    us.output_error -> e1.store_in;
+    us.output_integral -> e2.store_in;
+    us.output_target -> e3.store_in;
+
+    e1_p1_in -> e1.p1_in;
+    e1_p2_in -> e1.p2_in;
+    e1_p3_in -> e1.p3_in;
+    e1_p1p2_in -> e1.p1p2_in;
+    e1_p1p3_in -> e1.p1p3_in;
+    e1_p2p1_in -> e1.p2p1_in;
+    e1_p2p3_in -> e1.p2p3_in;
+    e1_p3p1_in -> e1.p3p1_in;
+    e1_p3p2_in -> e1.p3p2_in;
+
+    e1.round0_out -> e1_round0_out;
+    e1.p0p1_out -> e1_p0p1_out;
+    e1.p0p2_out -> e1_p0p2_out;
+    e1.p0p3_out -> e1_p0p3_out;
+    // e1.p0p1p2_out -> e1_p0p1p2_out;
+    // e1.p0p1p3_out -> e1_p0p1p3_out;
+    // e1.p0p2p1_out -> e1_p0p2p1_out;
+    // e1.p0p2p3_out -> e1_p0p2p3_out;
+    // e1.p0p3p1_out -> e1_p0p3p1_out;
+    // e1.p0p3p2_out -> e1_p0p3p2_out;
+
+    e1.final_out -> ps.input_globalE;
+
+    e2_p1_in -> e2.p1_in;
+    e2_p2_in -> e2.p2_in;
+    e2_p3_in -> e2.p3_in;
+    e2_p1p2_in -> e2.p1p2_in;
+    e2_p1p3_in -> e2.p1p3_in;
+    e2_p2p1_in -> e2.p2p1_in;
+    e2_p2p3_in -> e2.p2p3_in;
+    e2_p3p1_in -> e2.p3p1_in;
+    e2_p3p2_in -> e2.p3p2_in;
+
+    e2.round0_out -> e2_round0_out;
+    e2.p0p1_out -> e2_p0p1_out;
+    e2.p0p2_out -> e2_p0p2_out;
+    e2.p0p3_out -> e2_p0p3_out;
+    // e2.p0p1p2_out -> e2_p0p1p2_out;
+    // e2.p0p1p3_out -> e2_p0p1p3_out;
+    // e2.p0p2p1_out -> e2_p0p2p1_out;
+    // e2.p0p2p3_out -> e2_p0p2p3_out;
+    // e2.p0p3p1_out -> e2_p0p3p1_out;
+    // e2.p0p3p2_out -> e2_p0p3p2_out;
+
+    e2.final_out -> ps.input_globalI;
+
+    e3_p1_in -> e3.p1_in;
+    e3_p2_in -> e3.p2_in;
+    e3_p3_in -> e3.p3_in;
+    e3_p1p2_in -> e3.p1p2_in;
+    e3_p1p3_in -> e3.p1p3_in;
+    e3_p2p1_in -> e3.p2p1_in;
+    e3_p2p3_in -> e3.p2p3_in;
+    e3_p3p1_in -> e3.p3p1_in;
+    e3_p3p2_in -> e3.p3p2_in;
+
+    e3.round0_out -> e3_round0_out;
+    e3.p0p1_out -> e3_p0p1_out;
+    e3.p0p2_out -> e3_p0p2_out;
+    e3.p0p3_out -> e3_p0p3_out;
+    // e3.p0p1p2_out -> e3_p0p1p2_out;
+    // e3.p0p1p3_out -> e3_p0p1p3_out;
+    // e3.p0p2p1_out -> e3_p0p2p1_out;
+    // e3.p0p2p3_out -> e3_p0p2p3_out;
+    // e3.p0p3p1_out -> e3_p0p3p1_out;
+    // e3.p0p3p2_out -> e3_p0p3p2_out;
+
+    e3.final_out -> ps.input_globalT;
+
+    ps.output_globalI -> a.input_globalI after 0 ms;
+    ps.output_globalT -> a.input_globalT after 0 ms;
+    ps.output_globalE -> a.input_globalE after 0 ms;
+}

@@ -1,0 +1,30 @@
+target C
+
+preamble {=
+    struct tuple {
+        char key[32 + 1];
+        char value[64 + 1];
+        uint64_t time;
+    };
+=}
+
+reactor EIGtree1 {
+    input p1_in: tuple;
+    input p2_in: tuple;
+    input p3_in: tuple;
+
+    output p0p1_out: tuple;
+    output p0p2_out: tuple;
+    output p0p3_out: tuple;
+
+    reaction(p1_in) -> p0p1_out {=
+        lf_set(p0p1_out, p1_in);
+    =}
+
+    reaction(p2_in) -> p0p2_out {=
+        lf_set(p0p2_out, p2_in);
+    =}
+    reaction(p3_in) -> p0p3_out {=
+        lf_set(p0p3_out, p3_in);
+    =}
+}

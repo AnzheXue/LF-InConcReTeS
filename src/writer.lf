@@ -1,0 +1,37 @@
+target C
+
+preamble {=
+    struct tuple {
+        char key[32 + 1];
+        char value[64 + 1];
+        uint64_t time;
+    };
+=}
+
+reactor writer {
+    input error: double;
+    input integral: double;
+    input force: double;
+    input global_target: double;
+
+    output output_error: double;
+    output output_integral: double;
+    output output_target: double;
+    output output_force: double;
+
+    reaction (global_target) -> output_target {=
+        lf_set(output_target, global_target);
+    =}
+
+    reaction (error) -> output_error {=
+        lf_set(output_error, error);
+    =}
+
+    reaction (integral) -> output_integral {=
+        lf_set(output_integral, integral);
+    =}
+
+    reaction (force) -> output_force {=
+        lf_set(output_force, force);
+    =}
+}

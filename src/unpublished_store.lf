@@ -1,0 +1,39 @@
+target C
+
+preamble {=
+    struct tuple {
+        char key[32 + 1];
+        char value[64 + 1];
+        uint64_t time;
+    };
+=}
+    
+
+reactor unpublished_store {
+    input error: double;
+    input integral: double;
+    input global_target: double;
+
+    output output_error: tuple;
+    output output_integral: tuple;
+    output output_target: tuple;
+
+
+    reaction(error) -> output_error {=
+        lf_set(output_error.key, "error");
+        lf_set(output_error.value, stored_error);
+        lf_set(output_error.time, lf_get_time());
+    =}
+
+    reaction(integral) -> output_integral {=
+        lf_set(output_integral.key, "integral");
+        lf_set(output_integral.value, stored_integral);
+        lf_set(output_integral.time, lf_get_time());
+    =}
+
+    reaction(global_target) -> output_target {=
+        lf_set(output_target.key, "target");
+        lf_set(output_target.value, global_target);
+        lf_set(output_target.time, lf_get_time());
+    =}
+}

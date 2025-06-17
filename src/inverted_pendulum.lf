@@ -1,0 +1,186 @@
+target C
+
+import Sensor from "sensor.lf";
+import pi1 from "pi1.lf";
+import pi2 from "pi2.lf";
+import pi3 from "pi3.lf";
+import pi4 from "pi4.lf";
+import actuator from "actuator.lf";
+
+federated reactor inverted_pendulum {
+    s1 = new Sensor();
+    s2 = new Sensor();
+    s3 = new Sensor();
+    s4 = new Sensor();
+    p1 = new pi1();
+    p2 = new pi2();
+    p3 = new pi3();
+    p4 = new pi4();
+    a = new actuator();
+
+    s1.out -> p1.sensor_data;
+    s2.out -> p2.sensor_data;
+    s3.out -> p3.sensor_data;
+    s4.out -> p4.sensor_data;
+
+    p1.e1_round0_out -> p2.e1_p1_in;
+    p1.e1_round0_out -> p3.e1_p1_in;
+    p1.e1_round0_out -> p4.e1_p1_in;
+
+    p1.e1_p0p1_out -> p3.e1_p1p2_in;
+    p1.e1_p0p1_out -> p4.e1_p1p2_in;
+
+    p1.e1_p0p2_out -> p2.e1_p1p2_in;
+    p1.e1_p0p2_out -> p4.e1_p1p3_in;
+
+    p1.e1_p0p3_out -> p2.e1_p1p3_in;
+    p1.e1_p0p3_out -> p3.e1_p1p3_in;
+
+    p2.e1_round0_out -> p1.e1_p1_in;
+    p2.e1_round0_out -> p3.e1_p2_in;
+    p2.e1_round0_out -> p4.e1_p2_in;
+
+    p2.e1_p0p1_out -> p3.e1_p2p1_in;
+    p2.e1_p0p1_out -> p4.e1_p2p1_in;
+
+    p2.e1_p0p2_out -> p1.e1_p1p2_in;
+    p2.e1_p0p2_out -> p4.e1_p2p3_in;
+
+    p2.e1_p0p3_out -> p1.e1_p1p3_in;
+    p2.e1_p0p3_out -> p3.e1_p2p3_in;
+
+    p3.e1_round0_out -> p1.e1_p2_in;
+    p3.e1_round0_out -> p2.e1_p2_in;
+    p3.e1_round0_out -> p4.e1_p3_in;
+
+    p3.e1_p0p1_out -> p2.e1_p2p1_in;
+    p3.e1_p0p1_out -> p4.e1_p3p1_in;
+
+    p3.e1_p0p2_out -> p1.e1_p2p1_in;
+    p3.e1_p0p2_out -> p4.e1_p3p2_in;
+
+    p3.e1_p0p3_out -> p1.e1_p2p3_in;
+    p3.e1_p0p3_out -> p2.e1_p2p3_in;
+
+    p4.e1_round0_out -> p1.e1_p3_in;
+    p4.e1_round0_out -> p2.e1_p3_in;
+    p4.e1_round0_out -> p3.e1_p3_in;
+
+    p4.e1_p0p1_out -> p2.e1_p3p1_in;
+    p4.e1_p0p1_out -> p3.e1_p3p1_in;
+
+    p4.e1_p0p2_out -> p1.e1_p3p1_in;
+    p4.e1_p0p2_out -> p3.e1_p3p2_in;
+
+    p4.e1_p0p3_out -> p1.e1_p3p2_in;
+    p4.e1_p0p3_out -> p2.e1_p3p2_in;
+
+    p1.e2_round0_out -> p2.e2_p1_in;
+    p1.e2_round0_out -> p3.e2_p1_in;
+    p1.e2_round0_out -> p4.e2_p1_in;
+
+    p1.e2_p0p1_out -> p3.e2_p1p2_in;
+    p1.e2_p0p1_out -> p4.e2_p1p2_in;
+
+    p1.e2_p0p2_out -> p2.e2_p1p2_in;
+    p1.e2_p0p2_out -> p4.e2_p1p3_in;
+
+    p1.e2_p0p3_out -> p2.e2_p1p3_in;
+    p1.e2_p0p3_out -> p3.e2_p1p3_in;
+
+    p2.e2_round0_out -> p1.e2_p1_in;
+    p2.e2_round0_out -> p3.e2_p2_in;
+    p2.e2_round0_out -> p4.e2_p2_in;
+
+    p2.e2_p0p1_out -> p3.e2_p2p1_in;
+    p2.e2_p0p1_out -> p4.e2_p2p1_in;
+
+    p2.e2_p0p2_out -> p1.e2_p1p2_in;
+    p2.e2_p0p2_out -> p4.e2_p2p3_in;
+
+    p2.e2_p0p3_out -> p1.e2_p1p3_in;
+    p2.e2_p0p3_out -> p3.e2_p2p3_in;
+
+    p3.e2_round0_out -> p1.e2_p2_in;
+    p3.e2_round0_out -> p2.e2_p2_in;
+    p3.e2_round0_out -> p4.e2_p3_in;
+
+    p3.e2_p0p1_out -> p2.e2_p2p1_in;
+    p3.e2_p0p1_out -> p4.e2_p3p1_in;
+
+    p3.e2_p0p2_out -> p1.e2_p2p1_in;
+    p3.e2_p0p2_out -> p4.e2_p3p2_in;
+
+    p3.e2_p0p3_out -> p1.e2_p2p3_in;
+    p3.e2_p0p3_out -> p2.e2_p2p3_in;
+
+    p4.e2_round0_out -> p1.e2_p3_in;
+    p4.e2_round0_out -> p2.e2_p3_in;
+    p4.e2_round0_out -> p3.e2_p3_in;
+
+    p4.e2_p0p1_out -> p2.e2_p3p1_in;
+    p4.e2_p0p1_out -> p3.e2_p3p1_in;
+
+    p4.e2_p0p2_out -> p1.e2_p3p1_in;
+    p4.e2_p0p2_out -> p3.e2_p3p2_in;
+
+    p4.e2_p0p3_out -> p1.e2_p3p2_in;
+    p4.e2_p0p3_out -> p2.e2_p3p2_in;
+
+    p1.e3_round0_out -> p2.e3_p1_in;
+    p1.e3_round0_out -> p3.e3_p1_in;
+    p1.e3_round0_out -> p4.e3_p1_in;
+
+    p1.e3_p0p1_out -> p3.e3_p1p2_in;
+    p1.e3_p0p1_out -> p4.e3_p1p2_in;
+
+    p1.e3_p0p2_out -> p2.e3_p1p2_in;
+    p1.e3_p0p2_out -> p4.e3_p1p3_in;
+
+    p1.e3_p0p3_out -> p2.e3_p1p3_in;
+    p1.e3_p0p3_out -> p3.e3_p1p3_in;
+
+    p2.e3_round0_out -> p1.e3_p1_in;
+    p2.e3_round0_out -> p3.e3_p2_in;
+    p2.e3_round0_out -> p4.e3_p2_in;
+
+    p2.e3_p0p1_out -> p3.e3_p2p1_in;
+    p2.e3_p0p1_out -> p4.e3_p2p1_in;
+
+    p2.e3_p0p2_out -> p1.e3_p1p2_in;
+    p2.e3_p0p2_out -> p4.e3_p2p3_in;
+
+    p2.e3_p0p3_out -> p1.e3_p1p3_in;
+    p2.e3_p0p3_out -> p3.e3_p2p3_in;
+
+    p3.e3_round0_out -> p1.e3_p2_in;
+    p3.e3_round0_out -> p2.e3_p2_in;
+    p3.e3_round0_out -> p4.e3_p3_in;
+
+    p3.e3_p0p1_out -> p2.e3_p2p1_in;
+    p3.e3_p0p1_out -> p4.e3_p3p1_in;
+
+    p3.e3_p0p2_out -> p1.e3_p2p1_in;
+    p3.e3_p0p2_out -> p4.e3_p3p2_in;
+
+    p3.e3_p0p3_out -> p1.e3_p2p3_in;
+    p3.e3_p0p3_out -> p2.e3_p2p3_in;
+
+    p4.e3_round0_out -> p1.e3_p3_in;
+    p4.e3_round0_out -> p2.e3_p3_in;
+    p4.e3_round0_out -> p3.e3_p3_in;
+
+    p4.e3_p0p1_out -> p2.e3_p3p1_in;
+    p4.e3_p0p1_out -> p3.e3_p3p1_in;
+
+    p4.e3_p0p2_out -> p1.e3_p3p1_in;
+    p4.e3_p0p2_out -> p3.e3_p3p2_in;
+
+    p4.e3_p0p3_out -> p1.e3_p3p2_in;
+    p4.e3_p0p3_out -> p2.e3_p3p2_in;
+
+    p1.force -> a.p1_force;
+    p2.force -> a.p2_force;
+    p3.force -> a.p3_force;
+    p4.force -> a.p4_force;
+}
