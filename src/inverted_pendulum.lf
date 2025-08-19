@@ -1,27 +1,2363 @@
-target C
+target C {
+    timeout: 100 s,
+    // logging: log 
+    tracing: true
+}
 
-import Sensor from "sensor.lf";
-import pi1 from "pi1.lf";
-import pi2 from "pi2.lf";
-import pi3 from "pi3.lf";
-import pi4 from "pi4.lf";
-import actuator from "actuator.lf";
+// import Sensor from "sensor.lf";
+// import pi1 from "pi1.lf";
+// import pi2 from "pi2.lf";
+// import pi3 from "pi3.lf";
+// import pi4 from "pi4.lf";
+// import plant from "plant.lf";
 
-federated reactor inverted_pendulum {
-    s1 = new Sensor();
-    s2 = new Sensor();
-    s3 = new Sensor();
-    s4 = new Sensor();
-    p1 = new pi1();
-    p2 = new pi2();
-    p3 = new pi3();
-    p4 = new pi4();
+preamble {=
+    typedef struct {
+        char key[32 + 1];
+        double value;
+        uint64_t time;
+    } tuple;
+
+    typedef struct {
+        double value;
+        int count;
+        int first_index;
+    } tally;
+
+    typedef struct {
+        double value;
+        uint64_t time;
+    } version;
+
+    #include <string.h>
+    #include <math.h>
+    #include <stdio.h>
+    #include <stdlib.h>
+
+    static int successful_reads = 0;
+    static int total_reads = 0;
+
+    static int successful_writes = 0;
+    static int total_writes = 0;
+
+    static FILE* _csv = NULL;
+
+    static void open_csv() {
+        if (!_csv) {
+            _csv = fopen("raw_timing_KVS.csv", "w");
+            fprintf(_csv, "metric,period_ms,ms,successful_reads,total_reads,successful_writes,total_writes\n");
+            fflush(_csv);
+        }
+    }
+
+    static void log_raw(const char* metric, long long period_ms, long long delta, int sr, int tr, int sw, int tw) {
+        open_csv();
+        fprintf(_csv, "%s,%lld,%lld,%d,%d,%d,%d\n", metric, period_ms, delta,
+                sr, tr, sw, tw);
+        fflush(_csv);
+    }
+
+    // static void log_raw(const char* metric, long long period_ms, long long delta) {
+    //     open_csv();
+    //     fprintf(_csv, "%s,%lld,%lld,%d,%d,%d,%d\n", metric, period_ms, delta,
+    //             successful_reads, total_reads, successful_writes, total_writes);
+    //     fflush(_csv);
+    // }
+
+    static FILE* _csv2 = NULL;
+    static void open_csv2() {
+        if (!_csv2) {
+            _csv2 = fopen("raw_timing_IvPSim.csv", "w");
+            fprintf(_csv2, "metric,period_ms,ms,lag_ms\n");
+            fflush(_csv2);
+        }
+    }
+
+    static void log_raw2(const char* metric, long long period_ms, long long delta, long long lag) {
+        open_csv2();
+        fprintf(_csv2, "%s,%lld,%lld,%lld\n", metric, period_ms, delta, lag);
+        fflush(_csv2);
+    }
+
+    static void add_total_reads(int reads) {
+        total_reads += reads;
+    }
+
+    static void add_successful_reads(int reads) {
+        successful_reads += reads;
+    }
+
+    static void add_total_writes(int writes) {
+        total_writes += writes;
+    }
+
+    static void add_successful_writes(int writes) {
+        successful_writes += writes;
+    }
+
+    static int cmp_double(const void *a, const void *b) {
+        double da = *(const double*)a;
+        double db = *(const double*)b;
+        return (da < db) ? -1 : (da > db) ? +1 : 0;
+    }
+
+    #define sqr(x) ((x)*(x))
+    #define MAX_VERSIONS 20
+    #define PUBLISHING_INTERVAL 10000000
+    #define TIMESTEP 0.05
+    #define TIME_PERIOD 10
+=}
+
+  // preamble {=
+  //   #include "common_types.h"
+  // =}
+
+reactor Sensor {
+    timer t(0, 10 ms);
+
+    input AP_in: double;
+    input AV_in: double;
+    input CP_in: double;
+    input CV_in: double;
+
+    output AP_out: double;
+    output AV_out: double;
+    output CP_out: double;
+    output CV_out: double;
+    output request: double; 
+    
+    output sim_start_time: time;
+
+    reaction(t) -> request, sim_start_time {=
+        lf_set(request, 0.0);
+        lf_set(sim_start_time, lf_time_physical_elapsed());
+        // lf_print("request = %f\n", request->value);
+        // lf_print("out[1] = %f\n", out[1]->value);
+        // lf_print("out[2] = %f\n", out[2]->value);
+        // lf_print("out[3] = %f\n", out[3]->value);
+    =}
+
+    reaction(AP_in) -> AP_out {=
+        lf_set(AP_out, AP_in->value);
+        // lf_print("AP_out = %f\n", AP_out->value);
+    =}
+
+    reaction(AV_in) -> AV_out {=
+        lf_set(AV_out, AV_in->value);
+        // lf_print("AV_out = %f\n", AV_out->value);
+    =}
+
+    reaction(CP_in) -> CP_out {=
+        lf_set(CP_out, CP_in->value);
+        // lf_print("CP_out = %f\n", CP_out->value);
+    =}
+
+    reaction(CV_in) -> CV_out {=
+        lf_set(CV_out, CV_in->value);
+        // lf_print("CV_out = %f\n", CV_out->value);
+    =}
+}
+
+reactor reader {
+    timer t(0 ms, 10 ms);
+
+    input input_globalT: double;
+    input input_globalI: double;
+    input input_globalE: double;
+    input AP_in: double;
+    input AV_in: double;
+    input CP_in: double;
+    input CV_in: double;
+
+    output output_globalT: double;
+    output output_globalI: double;
+    output output_globalE: double;
+    output AP_out: double;
+    output AV_out: double;
+    output CP_out: double;
+    output CV_out: double;
+    output last_arrival_time: time;
+
+    output request_T: time; // publishing time
+    output request_I: time;
+    output request_E: time;
+
+    output sr: int;
+    output tr: int;
+
+    // state initial_AP: double = 0.1;
+    // state initial_AV: double = 0.0;
+    // state initial_CP: double = 0.0;
+    // state initial_CV: double = 0.0;
+
+    reaction(input_globalT) -> output_globalT, sr {=
+        if (input_globalT->value < 100) {
+            add_successful_reads(1);
+        }
+        // } else {
+        //     lf_print("difference: %f\n", input_globalT->value);
+        // }
+        lf_set(output_globalT, input_globalT->value);
+        // lf_print("successful_reads: %d\n", successful_reads);
+        lf_set(sr, successful_reads);
+        // lf_print("output_globalT = %f\n", output_globalT->value);
+    =}
+
+    reaction(input_globalI) -> output_globalI, sr {=
+        if (input_globalI->value < 100) {
+            add_successful_reads(1);
+        } 
+        // else {
+        //     lf_print("difference: %f\n", input_globalI->value);
+        // }
+        lf_set(output_globalI, input_globalI->value);
+        // lf_print("successful_reads: %d\n", successful_reads);
+        lf_set(sr, successful_reads);   
+        // lf_print("output_globalI = %f\n", output_globalI->value);
+    =}
+
+    reaction(input_globalE) -> output_globalE, sr {=
+        if (input_globalE->value != -1) {
+            add_successful_reads(1);
+        } 
+        // else {
+        //     lf_print("difference: %f\n", input_globalE->value);
+        // }
+        lf_set(output_globalE, input_globalE->value);
+        // lf_print("successful_reads: %d\n", successful_reads);
+        lf_set(sr, successful_reads);
+        // lf_print("output_globalE = %f\n", output_globalE->value);
+    =}
+
+    // reaction(input_globalT) -> output_globalT {=
+    //     lf_set(output_globalT, input_globalT->value);
+    //     // lf_print("output_globalT = %f\n", output_globalT->value);
+    // =}
+
+    // reaction(input_globalI) -> output_globalI {=
+    //     lf_set(output_globalI, input_globalI->value);
+    //     // lf_print("output_globalI = %f\n", output_globalI->value);
+    // =}
+
+    // reaction(input_globalE) -> output_globalE {=
+    //     lf_set(output_globalE, input_globalE->value);
+    //     // lf_print("output_globalE = %f\n", output_globalE->value);
+    // =}
+
+    reaction(AP_in) -> AP_out {=
+        lf_set(AP_out, AP_in -> value);
+        // lf_print("AP_out = %f\n", AP_out->value);
+    =}
+
+    reaction(AV_in) -> AV_out {=
+        lf_set(AV_out, AV_in -> value);
+        // lf_print("AV_out = %f\n", AV_out->value);
+    =}
+
+    reaction(CP_in) -> CP_out {=
+        lf_set(CP_out, CP_in -> value);
+        // lf_print("CP_out = %f\n", CP_out->value);
+    =}
+
+    reaction(CV_in) -> CV_out {=
+        lf_set(CV_out, CV_in -> value);
+        // lf_print("CV_out = %f\n", CV_out->value);
+    =}
+
+    reaction(t) -> request_T, request_I, request_E, tr {=
+        lf_set(request_T, lf_time_physical_elapsed());
+        lf_set(request_I, lf_time_physical_elapsed());
+        lf_set(request_E, lf_time_physical_elapsed());
+        add_total_reads(3);
+        // lf_print("total_reads: %d\n", total_reads);
+        lf_set(tr, total_reads);
+        // lf_print("request_T = %ld\n", request_T->value);
+        // lf_print("request_I = %ld\n", request_I->value);
+        // lf_print("request_E = %ld\n", request_E->value);
+    =}
+
+    // reaction(t) -> request_T, request_I, request_E {=
+    //     lf_set(request_T, lf_time_physical_elapsed());
+    //     lf_set(request_I, lf_time_physical_elapsed());
+    //     lf_set(request_E, lf_time_physical_elapsed());
+    // =}
+
+}
+
+reactor compute {
+    timer t(1 ns, 10 ms);
+
+    input AP_in: double;
+    input AV_in: double;
+    input CP_in: double;
+    input CV_in: double;
+
+    input globalT: double;
+    input globalI: double;
+    input globalE: double;
+
+    output error: double;
+    output integral: double;
+    output global_target: double;
+    output force: double;
+
+    state g_target: double = 0.0; 
+    state global_integral: double = 0.0;
+    state global_error: double = 0.0; 
+    state last_arrival_time: time = 0 ns;
+    
+    state Kp: double = 125.0; 
+    state Ki: double = 25.0;
+    state Kd: double = 1.0;
+
+    state AP: double;
+    state globalI: double;
+    state globalE: double;
+    state globalT: double;
+
+    reaction(AP_in) {=
+        self->AP = AP_in->value;
+    =}
+
+    reaction(globalI) {=
+        self->global_integral = globalI->value;
+    =}
+
+    reaction(globalE) {=
+        self->global_error = globalE->value;
+    =}
+
+    reaction(globalT) {=
+        self->g_target = globalT->value;
+    =}
+
+    reaction(t) -> error, integral, global_target, force {=
+      //   if (!(AP_in->is_present &&
+      //     globalT->is_present && globalI->is_present && globalE->is_present)) {
+      //   return;   // wait until we have everything
+      // }
+        // double dt = lf_time_logical_elapsed() / 1000000000.0 * 0.05;
+        // double dt = (lf_time_logical_elapsed() * 0.05) / lf_time_physical_elapsed();
+        double dt;
+        if (self->last_arrival_time != 0) {
+            // lf_print("logical_time: %ld\n", lf_time_logical_elapsed());
+            // lf_print("physical_time: %ld\n", lf_time_physical_elapsed());
+            dt = (TIME_PERIOD * 1000000 * 0.05) / (lf_time_physical_elapsed() - self->last_arrival_time);
+            // lf_print("dt: %f\n", dt);
+        } else {
+            dt = TIMESTEP;
+        }
+        self->last_arrival_time = lf_time_physical_elapsed();
+        // lf_print("dt: %f\n", dt);
+        // lf_print("dt: %f\n", dt); 
+        double target = self->g_target;
+        double current = self->AP;
+        lf_print("Current: %f\n", current);
+        // lf_print("Global Integral: %f\n", self->global_integral);
+
+        double err = current - target;
+        double integ = self->global_integral + err * dt;
+        double deriv = (err - self->global_error) / dt;
+        // lf_print("derivative: %f\n", deriv);
+
+        double u = self->Kp * err + self->Ki * integ + self->Kd * deriv;
+
+        lf_set(error, err);
+        // lf_print("Error: %f\n", err);
+        lf_set(integral, integ);
+        // lf_print("Integral: %f\n", integ);
+        lf_set(force, u);
+        lf_print("Force: %f\n", u);
+        lf_set(global_target, self->g_target);
+        // lf_print("Global Target: %f\n", self->g_target);
+    =}
+}
+
+reactor writer {
+    input error: double;
+    input integral: double;
+    input force: double;
+    input global_target: double;
+
+    output output_error: double;
+    output output_integral: double;
+    output output_target: double;
+    output output_force: double;
+
+    output tw: int;
+
+    reaction (global_target) -> output_target, tw {=
+        lf_set(output_target, global_target->value);
+        add_total_writes(1);
+        // lf_print("total_writes: %d\n", total_writes);
+        lf_set(tw, total_writes);
+        // lf_print("Write global target: %f\n", global_target->value);
+    =}
+
+    reaction (error) -> output_error, tw {=
+        lf_set(output_error, error->value);
+        add_total_writes(1);
+        // lf_print("total_writes: %d\n", total_writes);
+        lf_set(tw, total_writes);
+        // lf_print("Write error: %f\n", error->value);
+    =}
+
+    reaction (integral) -> output_integral, tw {=
+        lf_set(output_integral, integral->value);
+        add_total_writes(1);
+        // lf_print("total_writes: %d\n", total_writes);
+        lf_set(tw, total_writes);
+        // lf_print("Write integral: %f\n", integral->value);
+    =}
+
+    // reaction (global_target) -> output_target {=
+    //     lf_set(output_target, global_target->value);
+    //     // lf_print("Write global target: %f\n", global_target->value);
+    // =}
+
+    // reaction (error) -> output_error {=
+    //     lf_set(output_error, error->value);
+    //     // lf_print("Write error: %f\n", error->value);
+    // =}
+
+    // reaction (integral) -> output_integral {=
+    //     lf_set(output_integral, integral->value);
+    //     // lf_print("Write integral: %f\n", integral->value);
+    // =}
+
+    reaction (force) -> output_force {=
+        lf_set(output_force, force->value);
+        // lf_print("Write force: %f\n", force->value);
+    =}
+}
+
+reactor actuator {
+    input input_force: double;
+
+    output output_force: double;
+
+    reaction(input_force) -> output_force{=
+        lf_set(output_force, input_force->value);
+        // lf_print("output_force: %f\n", output_force->value);
+    =}
+}
+
+reactor App {
+    input AP_in: double;
+    input AV_in: double;
+    input CP_in: double;
+    input CV_in: double;
+    input input_globalI: double;
+    input input_globalT: double;
+    input input_globalE: double;
+
+    output output_target: double;
+    output output_force: double;
+    output output_integral: double;
+    output output_error: double;
+
+    output request_T: time;
+    output request_I: time;
+    output request_E: time;
+
+    output sr: int;
+    output tr: int;
+    output tw: int;
+
+    r = new reader();
+    c = new compute();
+    w = new writer();
     a = new actuator();
 
-    s1.out -> p1.sensor_data;
-    s2.out -> p2.sensor_data;
-    s3.out -> p3.sensor_data;
-    s4.out -> p4.sensor_data;
+    input_globalI -> r.input_globalI;
+    input_globalT -> r.input_globalT;
+    input_globalE -> r.input_globalE;
+
+    AP_in -> r.AP_in;
+    AV_in -> r.AV_in;
+    CP_in -> r.CP_in;
+    CV_in -> r.CV_in;
+
+    r.output_globalI -> c.globalI;
+    r.output_globalT -> c.globalT;
+    r.output_globalE -> c.globalE; 
+    r.request_T -> request_T after 0 ms;
+    r.request_I -> request_I after 0 ms;
+    r.request_E -> request_E after 0 ms;
+    r.AP_out -> c.AP_in;
+    r.AV_out -> c.AV_in;
+    r.CP_out -> c.CP_in;
+    r.CV_out -> c.CV_in;
+    c.force -> w.force;
+    c.integral -> w.integral;
+    c.error -> w.error;
+    c.global_target -> w.global_target;
+
+    w.output_force -> a.input_force;
+    w.output_target -> output_target;
+    w.output_integral -> output_integral;
+    w.output_error -> output_error;
+
+    a.output_force -> output_force;
+
+    r.sr -> sr;
+    r.tr -> tr;
+    w.tw -> tw;
+}
+
+reactor unpublished_store {
+    // timer t(5 ms, 200ms);
+    input error: double;
+    input integral: double;
+    input global_target: double;
+
+    output output_error: tuple;
+    output output_integral: tuple;
+    output output_target: tuple;
+
+    output sw: int;
+
+    // state stored_error: tuple = {"error", 0.0, 0}; // Default error value
+    // state stored_integral: tuple = {"integral", 0.0, 0}; // Default integral value
+    // state stored_target: tuple = {"target", 0.0, 0}; // Default target value
+
+
+    reaction(error) -> output_error, sw {=
+        // stored_error = error -> value;
+        tuple t; 
+        strncpy(t.key, "error", sizeof(t.key));
+        t.value = error -> value;
+        t.time = lf_time_physical_elapsed();
+        lf_set(output_error, t);
+        add_successful_writes(1);
+        // lf_print("successful_writes: %d\n", successful_writes);
+        lf_set(sw, successful_writes);
+        // stored_error = t; // Store the value in state
+        // lf_print("Stored error: %f\n", output_error->value.value);
+    =}
+
+    reaction(integral) -> output_integral, sw {=
+        // stored_integral = integral -> value;
+        tuple t;
+        strncpy(t.key, "integral", sizeof(t.key));
+        t.value = integral -> value;
+        t.time = lf_time_physical_elapsed();
+        lf_set(output_integral, t);
+        add_successful_writes(1);
+        // lf_print("successful_writes: %d\n", successful_writes);
+        lf_set(sw, successful_writes);
+        // stored_integral = t; // Store the value in state
+        // lf_print("Stored integral: %f\n", output_integral->value.value);
+    =}
+
+    reaction(global_target) -> output_target, sw {=
+        // stored_target = global_target -> value;
+        tuple t;
+        strncpy(t.key, "target", sizeof(t.key));
+        t.value = global_target->value;
+        t.time = lf_time_physical_elapsed();
+        lf_set(output_target, t);
+        add_successful_writes(1);
+        // lf_print("successful_writes: %d\n", successful_writes);
+        lf_set(sw, successful_writes);
+        // stored_target = t; // Store the value in state
+        // lf_print("Stored target: %f\n", output_target->value.value);
+    =}
+
+    // reaction(error) -> output_error {=
+    //     // stored_error = error -> value;
+    //     tuple t; 
+    //     strncpy(t.key, "error", sizeof(t.key));
+    //     t.value = error -> value;
+    //     t.time = lf_time_physical_elapsed() + PUBLISHING_INTERVAL;
+    //     lf_set(output_error, t);
+    // =}
+
+    // reaction(integral) -> output_integral {=
+    //     // stored_integral = integral -> value;
+    //     tuple t;
+    //     strncpy(t.key, "integral", sizeof(t.key));
+    //     t.value = integral -> value;
+    //     t.time = lf_time_physical_elapsed() + PUBLISHING_INTERVAL;
+    //     lf_set(output_integral, t);
+    // =}
+
+    // reaction(global_target) -> output_target {=
+    //     // stored_target = global_target -> value;
+    //     tuple t;
+    //     strncpy(t.key, "target", sizeof(t.key));
+    //     t.value = global_target->value;
+    //     t.time = lf_time_physical_elapsed() + PUBLISHING_INTERVAL;
+    //     lf_set(output_target, t);
+    //     // lf_print("Stored target: %f\n", output_target->value.value);
+    // =}
+
+    // reaction(t) -> output_error, output_integral, output_target {=
+    //     tuple t_error;
+    //     strncpy(t_error.key, "error", sizeof(t_error.key));
+    //     t_error.value = stored_error;
+    //     t_error.time = lf_time_physical_elapsed();
+    //     lf_set(output_error, t_error);
+    //     lf_print("Published stored error: %f\n", output_error->value.value);
+
+    //     tuple t_integral;
+    //     strncpy(t_integral.key, "integral", sizeof(t_integral.key));
+    //     t_integral.value = stored_integral;
+    //     t_integral.time = lf_time_physical_elapsed();
+    //     lf_set(output_integral, t_integral);
+    //     lf_print("Published stored integral: %f\n", output_integral->value.value);
+
+    //     tuple t_target;
+    //     strncpy(t_target.key, "target", sizeof(t_target.key));
+    //     t_target.value = stored_target;
+    //     t_target.time = lf_time_physical_elapsed();
+    //     lf_set(output_target, t_target);
+    //     lf_print("Published stored target: %f\n", output_target->value.value);
+    // =}
+}
+
+reactor faulty_unpublished_store {
+    input error: double;
+    input integral: double;
+    input global_target: double;
+
+    output output_error: tuple;
+    output output_integral: tuple;
+    output output_target: tuple;
+
+    state error: double = 2.0;
+    state integral: double = 2.0;
+    state global_target: double = 2.0;
+
+    output sw: int;
+
+
+    reaction(error) -> output_error, sw {=
+        // stored_error = error -> value;
+        tuple t; 
+        strncpy(t.key, "error", sizeof(t.key));
+        t.value = self->error; // Use the faulty value
+        t.time = lf_time_physical_elapsed();
+        lf_set(output_error, t);
+        add_successful_writes(1);
+        // lf_print("successful_writes: %d\n", successful_writes);
+        lf_set(sw, successful_writes);
+        // stored_error = t; // Store the value in state
+        // lf_print("Stored error: %f\n", output_error->value.value);
+    =}
+
+    reaction(integral) -> output_integral, sw {=
+        // stored_integral = integral -> value;
+        tuple t;
+        strncpy(t.key, "integral", sizeof(t.key));
+        t.value = self->integral; // Use the faulty value
+        t.time = lf_time_physical_elapsed();
+        lf_set(output_integral, t);
+        add_successful_writes(1);
+        // lf_print("successful_writes: %d\n", successful_writes);
+        lf_set(sw, successful_writes);
+        // stored_integral = t; // Store the value in state
+        // lf_print("Stored integral: %f\n", output_integral->value.value);
+    =}
+
+    reaction(global_target) -> output_target, sw {=
+        // stored_target = global_target -> value;
+        tuple t;
+        strncpy(t.key, "target", sizeof(t.key));
+        t.value = self->global_target; // Use the faulty value
+        t.time = lf_time_physical_elapsed();
+        lf_set(output_target, t);
+        add_successful_writes(1);
+        // lf_print("successful_writes: %d\n", successful_writes);
+        lf_set(sw, successful_writes);
+        // stored_target = t; // Store the value in state
+        // lf_print("Stored target: %f\n", output_target->value.value);
+    =}
+
+//     reaction(error) -> output_error {=
+//         // stored_error = error -> value;
+//         tuple t; 
+//         strncpy(t.key, "error", sizeof(t.key));
+//         t.value = self -> error; // Use the faulty value
+//         t.time = lf_time_physical_elapsed() + PUBLISHING_INTERVAL;
+//         lf_set(output_error, t);
+//     =}
+
+//     reaction(integral) -> output_integral {=
+//         // stored_integral = integral -> value;
+//         tuple t;
+//         strncpy(t.key, "integral", sizeof(t.key));
+//         t.value = self -> integral; // Use the faulty value
+//         t.time = lf_time_physical_elapsed() + PUBLISHING_INTERVAL;
+//         lf_set(output_integral, t);
+//     =}
+
+//     reaction(global_target) -> output_target {=
+//         // stored_target = global_target -> value;
+//         tuple t;
+//         strncpy(t.key, "target", sizeof(t.key));
+//         t.value = self -> global_target; // Use the faulty value
+//         t.time = lf_time_physical_elapsed() + PUBLISHING_INTERVAL;
+//         lf_set(output_target, t);
+//         // lf_print("Stored target: %f\n", output_target->value.value);
+//     =}
+}
+
+
+reactor published_store {
+    preamble {=
+        version vt[MAX_VERSIONS];
+        version vi[MAX_VERSIONS];
+        version ve[MAX_VERSIONS];
+    =}
+
+    input input_globalT: tuple;
+    input input_globalI: tuple;
+    input input_globalE: tuple;
+
+    input request_T: time; // publishing time
+    input request_I: time;
+    input request_E: time;
+    
+    output output_globalT: double;
+    output output_globalI: double;
+    output output_globalE: double;
+
+    state g_target: tuple = {"target", 0.0, 0}; // Default target value
+    state global_integral: tuple = {"integral", 0.0, 0}; // Default integral value
+    state global_error: tuple = {"error", 0.0, 0}; // Default error value
+
+    state version_T_count: int = 0;
+    state version_I_count: int = 0;
+    state version_E_count: int = 0;
+
+    state min_index_T: int = 0;
+    state min_index_I: int = 0;
+    state min_index_E: int = 0;
+
+    reaction(input_globalT) {=
+        version i;
+        i.value = self->g_target.value;
+        i.time = self->g_target.time;
+        vt[self->version_T_count % MAX_VERSIONS] = i;
+        self->min_index_T = (self->version_T_count / MAX_VERSIONS) % MAX_VERSIONS;
+        self->version_T_count++;
+        self->g_target = input_globalT->value;
+        // self->g_target.time = lf_time_logical_elapsed();
+    =}
+
+    reaction(input_globalI) {=
+        version i;
+        i.value = self->global_integral.value;
+        i.time = self->global_integral.time;
+        vi[self->version_I_count % MAX_VERSIONS] = i;
+        self->min_index_I = (self->version_I_count / MAX_VERSIONS) % MAX_VERSIONS;
+        self->version_I_count++;
+        self->global_integral = input_globalI->value;
+        // self->global_integral.time = lf_time_logical_elapsed();
+    =}
+
+    reaction(input_globalE) {=
+        version i;
+        i.value = self->global_error.value;
+        i.time = self->global_error.time;
+        ve[self->version_E_count % MAX_VERSIONS] = i;
+        self->min_index_E = (self->version_E_count / MAX_VERSIONS) % MAX_VERSIONS;
+        self->version_E_count++;
+        self->global_error = input_globalE->value;
+        // self->global_error.time = lf_time_logical_elapsed();
+    =}
+
+    reaction (request_T) -> output_globalT {=
+        // lf_print("request_T = %lld\n", request_T->value);
+        if (self->g_target.time <= request_T->value) {
+            // lf_print("T:1");
+            // if (request_T->value - self->g_target.time > TIME_PERIOD) {
+            //     lf_set(output_globalT, -1);
+            // } else {
+            lf_set(output_globalT, self->g_target.value);
+            // }
+        } else if(vt[self->min_index_T].time > request_T->value || self->version_T_count == 0) {
+            // lf_print("T:2");
+            lf_request_stop();
+        } else {
+            // lf_print("T:3");
+            // lf_print("Skipping update for global target, request time: %lld, input time: %lld\n", request_T->value, self->g_target.time);
+            // uint64_t t_min = vt[self->min_index_T].time;
+            // uint64_t t_diff = request_T->value - t_min;
+            // uint64_t n = t_diff / PUBLISHING_INTERVAL;
+            // lf_set(output_globalT, vt[(self->min_index_T + n) % MAX_VERSIONS].value); // Set to default if not updated
+            // lf_print("requestT: %lld\n", request_T->value);
+            // lf_print("globalT: %lld\n", self->g_target.time);
+            lf_set(output_globalT, -1);
+        }
+        // lf_print("Published global target: %f\n", output_globalT->value);
+    =}
+
+    reaction (request_I) -> output_globalI {=
+        if (self->global_integral.time <= request_I->value) {
+            // lf_print("I:1");
+            // lf_print("Publishing global integral: %lld\n", self->global_integral.value);
+            // if (request_I->value - self->global_integral.time > TIME_PERIOD) {
+            //     lf_set(output_globalI, -1);
+            // } else {
+            lf_set(output_globalI, self->global_integral.value);
+            // }
+        } else if(vi[self->min_index_I].time > request_I->value || self->version_I_count == 0) {
+            // lf_print("I:2");
+            lf_request_stop();
+        } else {
+            // lf_print("I:3");
+            // lf_print("Skipping update for global integral, request time: %lld, input time: %lld\n", request_I->value, self->global_integral.time);
+            // uint64_t t_min = vi[self->min_index_I].time;
+            // uint64_t t_diff = request_I->value - t_min;
+            // uint64_t n = t_diff / PUBLISHING_INTERVAL;
+            // lf_set(output_globalI, vi[(self->min_index_I + n) % MAX_VERSIONS].value); // Set to default if not updated
+            // lf_print("difference: %f\n", request_I->value - self->global_integral.time);
+            // lf_print("requestI: %f\n", request_I->value);
+            // lf_print("globalI: %f\n", self->global_integral.value);
+            // lf_print("requestI: %lld\n", request_I->value);
+            // lf_print("globalI: %lld\n", self->global_integral.time);
+            lf_set(output_globalI, -1);
+        }
+        // lf_print("Published global integral: %f\n", output_globalI->value);
+    =}
+
+    reaction (request_E) -> output_globalE {=
+        // lf_print("request_E = %lld\n", request_E->value);
+        if (self->global_error.time <= request_E->value) {
+            // lf_print("E:1");
+            // lf_print("Publishing global error: %lld\n", self->global_error.value);
+        //     lf_print("Publishing global error: %lld\n", self->global_error.value);
+            // if (request_E->value - self->global_error.time > TIME_PERIOD) {
+            //     lf_set(output_globalE, -1);
+            // } else {
+            lf_set(output_globalE, self->global_error.value);
+            // }
+        } else if(ve[self->min_index_E].time > request_E->value || self->version_E_count == 0) {
+            // lf_print("E:2");
+            lf_request_stop();
+        } else {
+            // lf_print("E:3");
+            // lf_print("Skipping update for global integral, request time: %lld, input time: %lld\n", request_I->value, self->global_integral.time);
+            // uint64_t t_min = ve[self->min_index_E].time;
+            // uint64_t t_diff = request_E->value - t_min;
+            // uint64_t n = t_diff / PUBLISHING_INTERVAL;
+            // lf_set(output_globalE, ve[(self->min_index_E + n) % MAX_VERSIONS].value); // Set to default if not updated
+            // lf_print("requestE: %f\n", request_E->value);
+            // lf_print("globalE: %f\n", self->global_error.value);
+            // lf_print("requestE: %lld\n", request_E->value);
+            // lf_print("globalE: %lld\n", self->global_error.time);
+            lf_set(output_globalE, -1);
+        }
+        // lf_print("Published global error: %f\n", output_globalE->value);
+    =}
+
+
+    reaction(shutdown) {=
+      lf_print("Shutting down due to unwanted condition.\n");
+        if (_csv) {
+            fclose(_csv);
+        }
+    =}
+ }  
+
+// reactor EIGtree0 {
+//     input store_in: tuple;
+
+//     output round0_out: tuple;
+
+//     reaction(store_in) -> round0_out {=
+//         lf_set(round0_out, store_in->value);
+//         // lf_print("EIGtree0 received: %f\n", store_in->value.value);
+//     =}
+// }
+
+reactor EIGtree0 {
+    input store_in: tuple;
+
+    output round0_out: tuple;
+
+    reaction(store_in) -> round0_out {=
+        lf_set(round0_out, store_in->value);
+        // lf_print("EIGtree0 received: %f\n", store_in->value.value);
+    =}
+}
+
+reactor EIGtree1 {
+    input p1_in: tuple;
+    input p2_in: tuple;
+    input p3_in: tuple;
+
+    output p0p1_out: tuple;
+    output p0p2_out: tuple;
+    output p0p3_out: tuple;
+
+    reaction(p1_in) -> p0p1_out {=
+        lf_set(p0p1_out, p1_in->value);
+        // lf_print("EIGtree1 received p1: %f\n", p1_in->value.value);
+    =}
+
+    reaction(p2_in) -> p0p2_out {=
+        lf_set(p0p2_out, p2_in->value);
+        // lf_print("EIGtree1 received p2: %f\n", p2_in->value.value);
+    =}
+    reaction(p3_in) -> p0p3_out {=
+        lf_set(p0p3_out, p3_in->value);
+        // lf_print("EIGtree1 received p3: %f\n", p3_in->value.value);
+    =}
+}
+
+reactor EIGtree2 {
+    input p1p2_in: tuple;
+    input p1p3_in: tuple;
+    input p2p1_in: tuple;
+    input p2p3_in: tuple;
+    input p3p1_in: tuple;
+    input p3p2_in: tuple;
+
+    output p0p1p2_out: tuple;
+    output p0p1p3_out: tuple; 
+    output p0p2p1_out: tuple;
+    output p0p2p3_out: tuple;
+    output p0p3p1_out: tuple;
+    output p0p3p2_out: tuple;
+
+    reaction(p1p2_in) -> p0p1p2_out {=
+        lf_set(p0p1p2_out, p1p2_in->value);
+        // lf_print("EIGtree2 received p1p2: %f\n", p1p2_in->value.value);
+    =}
+
+    reaction(p1p3_in) -> p0p1p3_out {=
+        lf_set(p0p1p3_out, p1p3_in->value);
+        // lf_print("EIGtree2 received p1p3: %f\n", p1p3_in->value.value);
+    =}
+    
+    reaction(p2p1_in) -> p0p2p1_out {=
+        lf_set(p0p2p1_out, p2p1_in->value);
+        // lf_print("EIGtree2 received p2p1: %f\n", p2p1_in->value.value);
+    =}
+
+    reaction(p2p3_in) -> p0p2p3_out {=
+        lf_set(p0p2p3_out, p2p3_in->value);
+        // lf_print("EIGtree2 received p2p3: %f\n", p2p3_in->value.value);
+    =}
+
+    reaction(p3p1_in) -> p0p3p1_out {=
+        lf_set(p0p3p1_out, p3p1_in->value);
+        // lf_print("EIGtree2 received p3p1: %f\n", p3p1_in->value.value);
+    =}
+
+    reaction(p3p2_in) -> p0p3p2_out {=
+        lf_set(p0p3p2_out, p3p2_in->value);
+        // lf_print("EIGtree2 received p3p2: %f\n", p3p2_in->value.value);
+    =}
+}
+
+// reactor EIGtreeReduction {
+//     input round0_in: tuple;
+//     input p0p1_in: tuple;
+//     input p0p2_in: tuple;
+//     input p0p3_in: tuple;
+//     input p0p1p2_in: tuple;
+//     input p0p1p3_in: tuple;
+//     input p0p2p1_in: tuple;
+//     input p0p2p3_in: tuple;
+//     input p0p3p1_in: tuple;
+//     input p0p3p2_in: tuple;
+
+//     output final_out: tuple;
+
+//     reaction(round0_in, p0p1_in, p0p2_in, p0p3_in,
+//          p0p1p2_in, p0p1p3_in, p0p2p1_in, p0p2p3_in,
+//          p0p3p1_in, p0p3p2_in) -> final_out {=
+//         if (round0_in->is_present &&
+//             p0p1_in->is_present && p0p2_in->is_present && p0p3_in->is_present &&
+//             p0p1p2_in->is_present && p0p1p3_in->is_present &&
+//             p0p2p1_in->is_present && p0p2p3_in->is_present &&
+//             p0p3p1_in->is_present && p0p3p2_in->is_present) {
+//             tuple inputs[10] = {
+//                 round0_in->value, p0p1_in->value, p0p2_in->value, p0p3_in->value,
+//                 p0p1p2_in->value, p0p1p3_in->value, p0p2p1_in->value, p0p2p3_in->value,
+//                 p0p3p1_in->value, p0p3p2_in->value
+//             };
+
+//             int unique_count = 0;
+//             tally t[10] = {0};
+
+//             for (int i = 0; i < 10; i++) {
+//                 int found = 0;
+//                 for (int j = 0; j < unique_count; j++) {
+//                     if (inputs[i].value == t[j].value) {
+//                         t[j].count++;
+//                         t[j].first_index = i;
+//                         found = 1;
+//                         break;
+//                     }
+//                 }
+
+//                 if (!found) {
+//                     t[unique_count].value = inputs[i].value;
+//                     t[unique_count].count = 1;
+//                     t[unique_count].first_index = i;
+//                     unique_count++;
+//                 }
+//             }
+
+//             int max_count = 0;
+//             int best_index = 0;
+//             for (int i = 0; i < unique_count; i++) {
+//                 if (t[i].count > max_count) {
+//                     max_count = t[i].count;
+//                     best_index = t[i].first_index;
+//                 }
+//             }
+//             lf_set(final_out, inputs[best_index]);
+//             // lf_print("EIGtreeReduction final output: %f\n", inputs[best_index].value);
+//         }
+//     =}
+// }
+
+reactor EIGtreeReduction {
+    input round0_in: tuple;
+    input p0p1_in: tuple;
+    input p0p2_in: tuple;
+    input p0p3_in: tuple;
+    input p0p1p2_in: tuple;
+    input p0p1p3_in: tuple;
+    input p0p2p1_in: tuple;
+    input p0p2p3_in: tuple;
+    input p0p3p1_in: tuple;
+    input p0p3p2_in: tuple;
+
+    output final_out: tuple;
+
+    reaction(round0_in, p0p1_in, p0p2_in, p0p3_in,
+         p0p1p2_in, p0p1p3_in, p0p2p1_in, p0p2p3_in,
+         p0p3p1_in, p0p3p2_in) -> final_out {=
+        if (round0_in->is_present &&
+            p0p1_in->is_present && p0p2_in->is_present && p0p3_in->is_present &&
+            p0p1p2_in->is_present && p0p1p3_in->is_present &&
+            p0p2p1_in->is_present && p0p2p3_in->is_present &&
+            p0p3p1_in->is_present && p0p3p2_in->is_present) {
+            double values[10] = {
+                round0_in->value.value,
+                p0p1_in->value.value,
+                p0p2_in->value.value,
+                p0p3_in->value.value,
+                p0p1p2_in->value.value,
+                p0p1p3_in->value.value,
+                p0p2p1_in->value.value,
+                p0p2p3_in->value.value,
+                p0p3p1_in->value.value,
+                p0p3p2_in->value.value
+            };
+
+            qsort(values, 10, sizeof(double), cmp_double);
+
+            // for (int i = 0; i < 10; i++) {
+            //     lf_print("Value %d: %f\n", i, values[i]);
+            // }
+
+            double median = (values[4] + values[5]) / 2.0;
+            tuple out = round0_in->value;
+            out.value = median;
+
+            lf_set(final_out, out);
+        }
+    =}
+}
+
+reactor EIGtree {
+    input store_in: tuple;
+    input p1_in: tuple;
+    input p2_in: tuple;
+    input p3_in: tuple;
+    input p1p2_in: tuple;
+    input p1p3_in: tuple;
+    input p2p1_in: tuple;
+    input p2p3_in: tuple;
+    input p3p1_in: tuple;
+    input p3p2_in: tuple;
+
+    input sr: int;
+    input tr: int;
+    input sw: int;
+    input tw: int;
+
+    output round0_out: tuple;
+    output p0p1_out: tuple;
+    output p0p2_out: tuple;
+    output p0p3_out: tuple;
+    // output p0p1p2_out: tuple;
+    // output p0p1p3_out: tuple;
+    // output p0p2p1_out: tuple;
+    // output p0p2p3_out: tuple;
+    // output p0p3p1_out: tuple;
+    // output p0p3p2_out: tuple;
+
+    output final_out: tuple;
+
+    state start_time: time = 0 ns;
+    state end_time: time = 0 ns;
+    
+    state logical_start_time = 0 ns;
+    state logical_end_time = 0 ns;
+
+    state successful_reads: int = 0;
+    state total_reads: int = 0;
+    state successful_writes: int = 0;
+    state total_writes: int = 0;
+
+    et0 = new EIGtree0();
+    et1 = new EIGtree1();
+    et2 = new EIGtree2();
+    etr = new EIGtreeReduction();
+
+    store_in -> et0.store_in;
+    p1_in -> et1.p1_in;
+    p2_in -> et1.p2_in;
+    p3_in -> et1.p3_in;
+    p1p2_in -> et2.p1p2_in;
+    p1p3_in -> et2.p1p3_in;
+    p2p1_in -> et2.p2p1_in;
+    p2p3_in -> et2.p2p3_in;
+    p3p1_in -> et2.p3p1_in;
+    p3p2_in -> et2.p3p2_in;
+
+    et0.round0_out -> etr.round0_in;
+    et1.p0p1_out -> etr.p0p1_in;
+    et1.p0p2_out -> etr.p0p2_in;
+    et1.p0p3_out -> etr.p0p3_in;
+    et2.p0p1p2_out -> etr.p0p1p2_in;
+    et2.p0p1p3_out -> etr.p0p1p3_in;
+    et2.p0p2p1_out -> etr.p0p2p1_in;
+    et2.p0p2p3_out -> etr.p0p2p3_in;
+    et2.p0p3p1_out -> etr.p0p3p1_in;
+    et2.p0p3p2_out -> etr.p0p3p2_in;
+
+    etr.final_out -> final_out;
+
+    et0.round0_out -> round0_out;
+    et1.p0p1_out -> p0p1_out;
+    et1.p0p2_out -> p0p2_out;
+    et1.p0p3_out -> p0p3_out;
+    // et2.p0p1p2_out -> p0p1p2_out;
+    // et2.p0p1p3_out -> p0p1p3_out;
+    // et2.p0p2p1_out -> p0p2p1_out;
+    // et2.p0p2p3_out -> p0p2p3_out;
+    // et2.p0p3p1_out -> p0p3p1_out;
+    // et2.p0p3p2_out -> p0p3p2_out;
+
+    reaction(store_in) {=
+        self->start_time = lf_time_physical_elapsed();
+        self->logical_start_time = lf_time_logical_elapsed();
+        // lf_print("EIGtree started at: %lld\n", self->start_time);
+    =}
+
+    reaction(sr) {=
+        self->successful_reads = sr->value;
+    =}
+
+    reaction(tr) {=
+        self->total_reads = tr->value;
+    =}
+
+    reaction(sw) {=
+        self->successful_writes = sw->value;
+    =}
+
+    reaction(tw) {=
+        self->total_writes = tw->value;
+    =}
+
+    reaction(etr.final_out) {=
+        self->end_time = lf_time_physical_elapsed();
+        self->logical_end_time = lf_time_logical_elapsed();
+        // lf_print("KVSLatency_ms: %lld\n", (self->end_time - self->start_time) / 1000000);
+        long long delta = (self->end_time - self->start_time) / 1000000;
+        if (delta > 5) {
+            lf_print("KVSLogicalLatency_ms: %lld\n", (self->logical_end_time - self->logical_start_time) / 1000000);
+        }
+        // log_raw("KVS", 50, delta);
+        log_raw("KVS", 50, delta, self->successful_reads, self->total_reads,
+                self->successful_writes, self->total_writes);
+        // lf_print("EIGtree ended at: %lld\n", self->end_time);
+    =}
+}
+
+reactor pi1 {
+    input AP_in: double;
+    input AV_in: double;
+    input CP_in: double;
+    input CV_in: double;
+
+    input e1_p1_in: tuple;
+    input e1_p2_in: tuple;
+    input e1_p3_in: tuple;
+    input e1_p1p2_in: tuple;
+    input e1_p1p3_in: tuple;
+    input e1_p2p1_in: tuple;
+    input e1_p2p3_in: tuple;
+    input e1_p3p1_in: tuple;
+    input e1_p3p2_in: tuple;
+
+    input e2_p1_in: tuple;
+    input e2_p2_in: tuple;
+    input e2_p3_in: tuple;
+    input e2_p1p2_in: tuple;
+    input e2_p1p3_in: tuple;
+    input e2_p2p1_in: tuple;
+    input e2_p2p3_in: tuple;
+    input e2_p3p1_in: tuple;
+    input e2_p3p2_in: tuple;
+
+    input e3_p1_in: tuple;
+    input e3_p2_in: tuple;
+    input e3_p3_in: tuple;
+    input e3_p1p2_in: tuple;
+    input e3_p1p3_in: tuple;
+    input e3_p2p1_in: tuple;
+    input e3_p2p3_in: tuple;
+    input e3_p3p1_in: tuple;
+    input e3_p3p2_in: tuple;
+
+    output e1_round0_out: tuple;
+    output e1_p0p1_out: tuple;
+    output e1_p0p2_out: tuple;
+    output e1_p0p3_out: tuple;
+    // output e1_p0p1p2_out: tuple;
+    // output e1_p0p1p3_out: tuple;
+    // output e1_p0p2p1_out: tuple;
+    // output e1_p0p2p3_out: tuple;
+    // output e1_p0p3p1_out: tuple;
+    // output e1_p0p3p2_out: tuple;
+
+    output e2_round0_out: tuple;
+    output e2_p0p1_out: tuple;
+    output e2_p0p2_out: tuple;
+    output e2_p0p3_out: tuple;
+    // output e2_p0p1p2_out: tuple;
+    // output e2_p0p1p3_out: tuple;
+    // output e2_p0p2p1_out: tuple;
+    // output e2_p0p2p3_out: tuple;
+    // output e2_p0p3p1_out: tuple;
+    // output e2_p0p3p2_out: tuple;
+
+    output e3_round0_out: tuple;
+    output e3_p0p1_out: tuple;
+    output e3_p0p2_out: tuple;
+    output e3_p0p3_out: tuple;
+    // output e3_p0p1p2_out: tuple;
+    // output e3_p0p1p3_out: tuple;
+    // output e3_p0p2p1_out: tuple;
+    // output e3_p0p2p3_out: tuple;
+    // output e3_p0p3p1_out: tuple;
+    // output e3_p0p3p2_out: tuple;
+
+    output force: double;
+
+    input sim_start_time: time;
+
+    output sim_st: time;
+
+    reaction (sim_start_time) -> sim_st {=
+        // lf_print("Simulation start time: %lld\n", sim_start_time->value);
+        lf_set(sim_st, sim_start_time->value);
+    =}
+
+    a = new App();
+    ps = new published_store();
+    // us = new faulty_unpublished_store();
+    us = new unpublished_store();
+    e1 = new EIGtree();
+    e2 = new EIGtree();
+    e3 = new EIGtree();
+
+    // reaction(a.output_force) {=
+    //     lf_print("IvPSimLatency_ms: %lld\n", (lf_time_physical_elapsed() - self->sim_st) / 1000000);
+    //     log_raw("IvPSim", 50, (lf_time_physical_elapsed() - self->sim_st) / 1000000);
+    // =}
+
+    AP_in -> a.AP_in;
+    AV_in -> a.AV_in;
+    CP_in -> a.CP_in;
+    CV_in -> a.CV_in;
+    a.output_force -> force;
+
+    a.output_error -> us.error;
+    a.output_integral -> us.integral;
+    a.output_target -> us.global_target;
+
+    us.output_error -> e1.store_in;
+    us.output_integral -> e2.store_in;
+    us.output_target -> e3.store_in;
+
+    e1_p1_in -> e1.p1_in;
+    e1_p2_in -> e1.p2_in;
+    e1_p3_in -> e1.p3_in;
+    e1_p1p2_in -> e1.p1p2_in;
+    e1_p1p3_in -> e1.p1p3_in;
+    e1_p2p1_in -> e1.p2p1_in;
+    e1_p2p3_in -> e1.p2p3_in;
+    e1_p3p1_in -> e1.p3p1_in;
+    e1_p3p2_in -> e1.p3p2_in;
+
+    e1.round0_out -> e1_round0_out;
+    e1.p0p1_out -> e1_p0p1_out;
+    e1.p0p2_out -> e1_p0p2_out;
+    e1.p0p3_out -> e1_p0p3_out;
+    // e1.p0p1p2_out -> e1_p0p1p2_out;
+    // e1.p0p1p3_out -> e1_p0p1p3_out;
+    // e1.p0p2p1_out -> e1_p0p2p1_out;
+    // e1.p0p2p3_out -> e1_p0p2p3_out;
+    // e1.p0p3p1_out -> e1_p0p3p1_out;
+    // e1.p0p3p2_out -> e1_p0p3p2_out;
+
+    e1.final_out -> ps.input_globalE after 0 ms;
+
+    e2_p1_in -> e2.p1_in;
+    e2_p2_in -> e2.p2_in;
+    e2_p3_in -> e2.p3_in;
+    e2_p1p2_in -> e2.p1p2_in;
+    e2_p1p3_in -> e2.p1p3_in;
+    e2_p2p1_in -> e2.p2p1_in;
+    e2_p2p3_in -> e2.p2p3_in;
+    e2_p3p1_in -> e2.p3p1_in;
+    e2_p3p2_in -> e2.p3p2_in;
+
+    e2.round0_out -> e2_round0_out;
+    e2.p0p1_out -> e2_p0p1_out;
+    e2.p0p2_out -> e2_p0p2_out;
+    e2.p0p3_out -> e2_p0p3_out;
+    // e2.p0p1p2_out -> e2_p0p1p2_out;
+    // e2.p0p1p3_out -> e2_p0p1p3_out;
+    // e2.p0p2p1_out -> e2_p0p2p1_out;
+    // e2.p0p2p3_out -> e2_p0p2p3_out;
+    // e2.p0p3p1_out -> e2_p0p3p1_out;
+    // e2.p0p3p2_out -> e2_p0p3p2_out;
+
+    e2.final_out -> ps.input_globalI after 0 ms;
+
+    e3_p1_in -> e3.p1_in;
+    e3_p2_in -> e3.p2_in;
+    e3_p3_in -> e3.p3_in;
+    e3_p1p2_in -> e3.p1p2_in;
+    e3_p1p3_in -> e3.p1p3_in;
+    e3_p2p1_in -> e3.p2p1_in;
+    e3_p2p3_in -> e3.p2p3_in;
+    e3_p3p1_in -> e3.p3p1_in;
+    e3_p3p2_in -> e3.p3p2_in;
+
+    e3.round0_out -> e3_round0_out;
+    e3.p0p1_out -> e3_p0p1_out;
+    e3.p0p2_out -> e3_p0p2_out;
+    e3.p0p3_out -> e3_p0p3_out;
+    // e3.p0p1p2_out -> e3_p0p1p2_out;
+    // e3.p0p1p3_out -> e3_p0p1p3_out;
+    // e3.p0p2p1_out -> e3_p0p2p1_out;
+    // e3.p0p2p3_out -> e3_p0p2p3_out;
+    // e3.p0p3p1_out -> e3_p0p3p1_out;
+    // e3.p0p3p2_out -> e3_p0p3p2_out;
+
+    e3.final_out -> ps.input_globalT after 0 ms;
+
+    a.request_T -> ps.request_T;
+    a.request_I -> ps.request_I;
+    a.request_E -> ps.request_E;
+
+    ps.output_globalI -> a.input_globalI;
+    ps.output_globalT -> a.input_globalT;
+    ps.output_globalE -> a.input_globalE;
+
+    a.sr -> e1.sr;
+    a.sr -> e2.sr;
+    a.sr -> e3.sr;
+    a.tr -> e1.tr;
+    a.tr -> e2.tr;
+    a.tr -> e3.tr;
+    us.sw -> e1.sw;
+    us.sw -> e2.sw;
+    us.sw -> e3.sw;
+    a.tw -> e1.tw;
+    a.tw -> e2.tw;
+    a.tw -> e3.tw;
+}
+
+reactor pi2 {
+    input AP_in: double;
+    input AV_in: double;
+    input CP_in: double;
+    input CV_in: double;
+
+    input e1_p1_in: tuple;
+    input e1_p2_in: tuple;
+    input e1_p3_in: tuple;
+    input e1_p1p2_in: tuple;
+    input e1_p1p3_in: tuple;
+    input e1_p2p1_in: tuple;
+    input e1_p2p3_in: tuple;
+    input e1_p3p1_in: tuple;
+    input e1_p3p2_in: tuple;
+
+    input e2_p1_in: tuple;
+    input e2_p2_in: tuple;
+    input e2_p3_in: tuple;
+    input e2_p1p2_in: tuple;
+    input e2_p1p3_in: tuple;
+    input e2_p2p1_in: tuple;
+    input e2_p2p3_in: tuple;
+    input e2_p3p1_in: tuple;
+    input e2_p3p2_in: tuple;
+
+    input e3_p1_in: tuple;
+    input e3_p2_in: tuple;
+    input e3_p3_in: tuple;
+    input e3_p1p2_in: tuple;
+    input e3_p1p3_in: tuple;
+    input e3_p2p1_in: tuple;
+    input e3_p2p3_in: tuple;
+    input e3_p3p1_in: tuple;
+    input e3_p3p2_in: tuple;
+
+    output e1_round0_out: tuple;
+    output e1_p0p1_out: tuple;
+    output e1_p0p2_out: tuple;
+    output e1_p0p3_out: tuple;
+    // output e1_p0p1p2_out: tuple;
+    // output e1_p0p1p3_out: tuple;
+    // output e1_p0p2p1_out: tuple;
+    // output e1_p0p2p3_out: tuple;
+    // output e1_p0p3p1_out: tuple;
+    // output e1_p0p3p2_out: tuple;
+
+    output e2_round0_out: tuple;
+    output e2_p0p1_out: tuple;
+    output e2_p0p2_out: tuple;
+    output e2_p0p3_out: tuple;
+    // output e2_p0p1p2_out: tuple;
+    // output e2_p0p1p3_out: tuple;
+    // output e2_p0p2p1_out: tuple;
+    // output e2_p0p2p3_out: tuple;
+    // output e2_p0p3p1_out: tuple;
+    // output e2_p0p3p2_out: tuple;
+
+    output e3_round0_out: tuple;
+    output e3_p0p1_out: tuple;
+    output e3_p0p2_out: tuple;
+    output e3_p0p3_out: tuple;
+    // output e3_p0p1p2_out: tuple;
+    // output e3_p0p1p3_out: tuple;
+    // output e3_p0p2p1_out: tuple;
+    // output e3_p0p2p3_out: tuple;
+    // output e3_p0p3p1_out: tuple;
+    // output e3_p0p3p2_out: tuple;
+
+    output force: double;
+
+    input sim_start_time: time;
+
+    output sim_st: time;
+
+    reaction (sim_start_time) -> sim_st {=
+        // lf_print("Simulation start time: %lld\n", sim_start_time->value);
+        lf_set(sim_st, sim_start_time->value);
+    =}
+
+    a = new App();
+    ps = new published_store();
+    us = new unpublished_store();
+    e1 = new EIGtree();
+    e2 = new EIGtree();
+    e3 = new EIGtree();
+
+    // reaction(a.output_force) {=
+    //     lf_print("IvPSimLatency_ms: %lld\n", (lf_time_physical_elapsed() - self->sim_st) / 1000000);
+    //     log_raw("IvPSim", 50, (lf_time_physical_elapsed() - self->sim_st) / 1000000);
+    // =}
+
+    AP_in -> a.AP_in;
+    AV_in -> a.AV_in;
+    CP_in -> a.CP_in;
+    CV_in -> a.CV_in;
+    a.output_force -> force;
+
+    a.output_error -> us.error;
+    a.output_integral -> us.integral;
+    a.output_target -> us.global_target;
+
+    us.output_error -> e1.store_in;
+    us.output_integral -> e2.store_in;
+    us.output_target -> e3.store_in;
+
+    e1_p1_in -> e1.p1_in;
+    e1_p2_in -> e1.p2_in;
+    e1_p3_in -> e1.p3_in;
+    e1_p1p2_in -> e1.p1p2_in;
+    e1_p1p3_in -> e1.p1p3_in;
+    e1_p2p1_in -> e1.p2p1_in;
+    e1_p2p3_in -> e1.p2p3_in;
+    e1_p3p1_in -> e1.p3p1_in;
+    e1_p3p2_in -> e1.p3p2_in;
+
+    e1.round0_out -> e1_round0_out;
+    e1.p0p1_out -> e1_p0p1_out;
+    e1.p0p2_out -> e1_p0p2_out;
+    e1.p0p3_out -> e1_p0p3_out;
+    // e1.p0p1p2_out -> e1_p0p1p2_out;
+    // e1.p0p1p3_out -> e1_p0p1p3_out;
+    // e1.p0p2p1_out -> e1_p0p2p1_out;
+    // e1.p0p2p3_out -> e1_p0p2p3_out;
+    // e1.p0p3p1_out -> e1_p0p3p1_out;
+    // e1.p0p3p2_out -> e1_p0p3p2_out;
+
+    e1.final_out -> ps.input_globalE after 0 ms;
+
+    e2_p1_in -> e2.p1_in;
+    e2_p2_in -> e2.p2_in;
+    e2_p3_in -> e2.p3_in;
+    e2_p1p2_in -> e2.p1p2_in;
+    e2_p1p3_in -> e2.p1p3_in;
+    e2_p2p1_in -> e2.p2p1_in;
+    e2_p2p3_in -> e2.p2p3_in;
+    e2_p3p1_in -> e2.p3p1_in;
+    e2_p3p2_in -> e2.p3p2_in;
+
+    e2.round0_out -> e2_round0_out;
+    e2.p0p1_out -> e2_p0p1_out;
+    e2.p0p2_out -> e2_p0p2_out;
+    e2.p0p3_out -> e2_p0p3_out;
+    // e2.p0p1p2_out -> e2_p0p1p2_out;
+    // e2.p0p1p3_out -> e2_p0p1p3_out;
+    // e2.p0p2p1_out -> e2_p0p2p1_out;
+    // e2.p0p2p3_out -> e2_p0p2p3_out;
+    // e2.p0p3p1_out -> e2_p0p3p1_out;
+    // e2.p0p3p2_out -> e2_p0p3p2_out;
+
+    e2.final_out -> ps.input_globalI after 0 ms;
+
+    e3_p1_in -> e3.p1_in;
+    e3_p2_in -> e3.p2_in;
+    e3_p3_in -> e3.p3_in;
+    e3_p1p2_in -> e3.p1p2_in;
+    e3_p1p3_in -> e3.p1p3_in;
+    e3_p2p1_in -> e3.p2p1_in;
+    e3_p2p3_in -> e3.p2p3_in;
+    e3_p3p1_in -> e3.p3p1_in;
+    e3_p3p2_in -> e3.p3p2_in;
+
+    e3.round0_out -> e3_round0_out;
+    e3.p0p1_out -> e3_p0p1_out;
+    e3.p0p2_out -> e3_p0p2_out;
+    e3.p0p3_out -> e3_p0p3_out;
+    // e3.p0p1p2_out -> e3_p0p1p2_out;
+    // e3.p0p1p3_out -> e3_p0p1p3_out;
+    // e3.p0p2p1_out -> e3_p0p2p1_out;
+    // e3.p0p2p3_out -> e3_p0p2p3_out;
+    // e3.p0p3p1_out -> e3_p0p3p1_out;
+    // e3.p0p3p2_out -> e3_p0p3p2_out;
+
+    e3.final_out -> ps.input_globalT after 0 ms;
+
+    a.request_T -> ps.request_T;
+    a.request_I -> ps.request_I;
+    a.request_E -> ps.request_E;
+
+    ps.output_globalI -> a.input_globalI;
+    ps.output_globalT -> a.input_globalT;
+    ps.output_globalE -> a.input_globalE;
+
+    a.sr -> e1.sr;
+    a.sr -> e2.sr;
+    a.sr -> e3.sr;
+    a.tr -> e1.tr;
+    a.tr -> e2.tr;
+    a.tr -> e3.tr;
+    us.sw -> e1.sw;
+    us.sw -> e2.sw;
+    us.sw -> e3.sw;
+    a.tw -> e1.tw;
+    a.tw -> e2.tw;
+    a.tw -> e3.tw;
+}
+
+reactor pi3 {
+    input AP_in: double;
+    input AV_in: double;
+    input CP_in: double;
+    input CV_in: double;
+
+    input e1_p1_in: tuple;
+    input e1_p2_in: tuple;
+    input e1_p3_in: tuple;
+    input e1_p1p2_in: tuple;
+    input e1_p1p3_in: tuple;
+    input e1_p2p1_in: tuple;
+    input e1_p2p3_in: tuple;
+    input e1_p3p1_in: tuple;
+    input e1_p3p2_in: tuple;
+
+    input e2_p1_in: tuple;
+    input e2_p2_in: tuple;
+    input e2_p3_in: tuple;
+    input e2_p1p2_in: tuple;
+    input e2_p1p3_in: tuple;
+    input e2_p2p1_in: tuple;
+    input e2_p2p3_in: tuple;
+    input e2_p3p1_in: tuple;
+    input e2_p3p2_in: tuple;
+
+    input e3_p1_in: tuple;
+    input e3_p2_in: tuple;
+    input e3_p3_in: tuple;
+    input e3_p1p2_in: tuple;
+    input e3_p1p3_in: tuple;
+    input e3_p2p1_in: tuple;
+    input e3_p2p3_in: tuple;
+    input e3_p3p1_in: tuple;
+    input e3_p3p2_in: tuple;
+
+    output e1_round0_out: tuple;
+    output e1_p0p1_out: tuple;
+    output e1_p0p2_out: tuple;
+    output e1_p0p3_out: tuple;
+    // output e1_p0p1p2_out: tuple;
+    // output e1_p0p1p3_out: tuple;
+    // output e1_p0p2p1_out: tuple;
+    // output e1_p0p2p3_out: tuple;
+    // output e1_p0p3p1_out: tuple;
+    // output e1_p0p3p2_out: tuple;
+
+    output e2_round0_out: tuple;
+    output e2_p0p1_out: tuple;
+    output e2_p0p2_out: tuple;
+    output e2_p0p3_out: tuple;
+    // output e2_p0p1p2_out: tuple;
+    // output e2_p0p1p3_out: tuple;
+    // output e2_p0p2p1_out: tuple;
+    // output e2_p0p2p3_out: tuple;
+    // output e2_p0p3p1_out: tuple;
+    // output e2_p0p3p2_out: tuple;
+
+    output e3_round0_out: tuple;
+    output e3_p0p1_out: tuple;
+    output e3_p0p2_out: tuple;
+    output e3_p0p3_out: tuple;
+    // output e3_p0p1p2_out: tuple;
+    // output e3_p0p1p3_out: tuple;
+    // output e3_p0p2p1_out: tuple;
+    // output e3_p0p2p3_out: tuple;
+    // output e3_p0p3p1_out: tuple;
+    // output e3_p0p3p2_out: tuple;
+
+    output force: double;
+
+    input sim_start_time: time;
+
+    output sim_st: time;
+
+    reaction (sim_start_time) -> sim_st {=
+        // lf_print("Simulation start time: %lld\n", sim_start_time->value);
+        lf_set(sim_st, sim_start_time->value);
+    =}
+
+    a = new App();
+    ps = new published_store();
+    us = new unpublished_store();
+    e1 = new EIGtree();
+    e2 = new EIGtree();
+    e3 = new EIGtree();
+
+    // reaction(a.output_force) {=
+    //     lf_print("IvPSimLatency_ms: %lld\n", (lf_time_physical_elapsed() - self->sim_st) / 1000000);
+    //     log_raw("IvPSim", 50, (lf_time_physical_elapsed() - self->sim_st) / 1000000);
+    // =}
+
+    AP_in -> a.AP_in;
+    AV_in -> a.AV_in;
+    CP_in -> a.CP_in;
+    CV_in -> a.CV_in;
+    a.output_force -> force;
+
+    a.output_error -> us.error;
+    a.output_integral -> us.integral;
+    a.output_target -> us.global_target;
+
+    us.output_error -> e1.store_in;
+    us.output_integral -> e2.store_in;
+    us.output_target -> e3.store_in;
+
+    e1_p1_in -> e1.p1_in;
+    e1_p2_in -> e1.p2_in;
+    e1_p3_in -> e1.p3_in;
+    e1_p1p2_in -> e1.p1p2_in;
+    e1_p1p3_in -> e1.p1p3_in;
+    e1_p2p1_in -> e1.p2p1_in;
+    e1_p2p3_in -> e1.p2p3_in;
+    e1_p3p1_in -> e1.p3p1_in;
+    e1_p3p2_in -> e1.p3p2_in;
+
+    e1.round0_out -> e1_round0_out;
+    e1.p0p1_out -> e1_p0p1_out;
+    e1.p0p2_out -> e1_p0p2_out;
+    e1.p0p3_out -> e1_p0p3_out;
+    // e1.p0p1p2_out -> e1_p0p1p2_out;
+    // e1.p0p1p3_out -> e1_p0p1p3_out;
+    // e1.p0p2p1_out -> e1_p0p2p1_out;
+    // e1.p0p2p3_out -> e1_p0p2p3_out;
+    // e1.p0p3p1_out -> e1_p0p3p1_out;
+    // e1.p0p3p2_out -> e1_p0p3p2_out;
+
+    e1.final_out -> ps.input_globalE after 0 ms;
+
+    e2_p1_in -> e2.p1_in;
+    e2_p2_in -> e2.p2_in;
+    e2_p3_in -> e2.p3_in;
+    e2_p1p2_in -> e2.p1p2_in;
+    e2_p1p3_in -> e2.p1p3_in;
+    e2_p2p1_in -> e2.p2p1_in;
+    e2_p2p3_in -> e2.p2p3_in;
+    e2_p3p1_in -> e2.p3p1_in;
+    e2_p3p2_in -> e2.p3p2_in;
+
+    e2.round0_out -> e2_round0_out;
+    e2.p0p1_out -> e2_p0p1_out;
+    e2.p0p2_out -> e2_p0p2_out;
+    e2.p0p3_out -> e2_p0p3_out;
+    // e2.p0p1p2_out -> e2_p0p1p2_out;
+    // e2.p0p1p3_out -> e2_p0p1p3_out;
+    // e2.p0p2p1_out -> e2_p0p2p1_out;
+    // e2.p0p2p3_out -> e2_p0p2p3_out;
+    // e2.p0p3p1_out -> e2_p0p3p1_out;
+    // e2.p0p3p2_out -> e2_p0p3p2_out;
+
+    e2.final_out -> ps.input_globalI after 0 ms;
+
+    e3_p1_in -> e3.p1_in;
+    e3_p2_in -> e3.p2_in;
+    e3_p3_in -> e3.p3_in;
+    e3_p1p2_in -> e3.p1p2_in;
+    e3_p1p3_in -> e3.p1p3_in;
+    e3_p2p1_in -> e3.p2p1_in;
+    e3_p2p3_in -> e3.p2p3_in;
+    e3_p3p1_in -> e3.p3p1_in;
+    e3_p3p2_in -> e3.p3p2_in;
+
+    e3.round0_out -> e3_round0_out;
+    e3.p0p1_out -> e3_p0p1_out;
+    e3.p0p2_out -> e3_p0p2_out;
+    e3.p0p3_out -> e3_p0p3_out;
+    // e3.p0p1p2_out -> e3_p0p1p2_out;
+    // e3.p0p1p3_out -> e3_p0p1p3_out;
+    // e3.p0p2p1_out -> e3_p0p2p1_out;
+    // e3.p0p2p3_out -> e3_p0p2p3_out;
+    // e3.p0p3p1_out -> e3_p0p3p1_out;
+    // e3.p0p3p2_out -> e3_p0p3p2_out;
+
+    e3.final_out -> ps.input_globalT after 0 ms;
+
+    a.request_T -> ps.request_T;
+    a.request_I -> ps.request_I;
+    a.request_E -> ps.request_E;
+
+    ps.output_globalI -> a.input_globalI;
+    ps.output_globalT -> a.input_globalT;
+    ps.output_globalE -> a.input_globalE;
+
+    a.sr -> e1.sr;
+    a.sr -> e2.sr;
+    a.sr -> e3.sr;
+    a.tr -> e1.tr;
+    a.tr -> e2.tr;
+    a.tr -> e3.tr;
+    us.sw -> e1.sw;
+    us.sw -> e2.sw;
+    us.sw -> e3.sw;
+    a.tw -> e1.tw;
+    a.tw -> e2.tw;
+    a.tw -> e3.tw;
+}
+
+reactor pi4 {
+    input AP_in: double;
+    input AV_in: double;
+    input CP_in: double;
+    input CV_in: double;
+
+    input e1_p1_in: tuple;
+    input e1_p2_in: tuple;
+    input e1_p3_in: tuple;
+    input e1_p1p2_in: tuple;
+    input e1_p1p3_in: tuple;
+    input e1_p2p1_in: tuple;
+    input e1_p2p3_in: tuple;
+    input e1_p3p1_in: tuple;
+    input e1_p3p2_in: tuple;
+
+    input e2_p1_in: tuple;
+    input e2_p2_in: tuple;
+    input e2_p3_in: tuple;
+    input e2_p1p2_in: tuple;
+    input e2_p1p3_in: tuple;
+    input e2_p2p1_in: tuple;
+    input e2_p2p3_in: tuple;
+    input e2_p3p1_in: tuple;
+    input e2_p3p2_in: tuple;
+
+    input e3_p1_in: tuple;
+    input e3_p2_in: tuple;
+    input e3_p3_in: tuple;
+    input e3_p1p2_in: tuple;
+    input e3_p1p3_in: tuple;
+    input e3_p2p1_in: tuple;
+    input e3_p2p3_in: tuple;
+    input e3_p3p1_in: tuple;
+    input e3_p3p2_in: tuple;
+
+    output e1_round0_out: tuple;
+    output e1_p0p1_out: tuple;
+    output e1_p0p2_out: tuple;
+    output e1_p0p3_out: tuple;
+    // output e1_p0p1p2_out: tuple;
+    // output e1_p0p1p3_out: tuple;
+    // output e1_p0p2p1_out: tuple;
+    // output e1_p0p2p3_out: tuple;
+    // output e1_p0p3p1_out: tuple;
+    // output e1_p0p3p2_out: tuple;
+
+    output e2_round0_out: tuple;
+    output e2_p0p1_out: tuple;
+    output e2_p0p2_out: tuple;
+    output e2_p0p3_out: tuple;
+    // output e2_p0p1p2_out: tuple;
+    // output e2_p0p1p3_out: tuple;
+    // output e2_p0p2p1_out: tuple;
+    // output e2_p0p2p3_out: tuple;
+    // output e2_p0p3p1_out: tuple;
+    // output e2_p0p3p2_out: tuple;
+
+    output e3_round0_out: tuple;
+    output e3_p0p1_out: tuple;
+    output e3_p0p2_out: tuple;
+    output e3_p0p3_out: tuple;
+    // output e3_p0p1p2_out: tuple;
+    // output e3_p0p1p3_out: tuple;
+    // output e3_p0p2p1_out: tuple;
+    // output e3_p0p2p3_out: tuple;
+    // output e3_p0p3p1_out: tuple;
+    // output e3_p0p3p2_out: tuple;
+
+    output force: double;
+
+    input sim_start_time: time;
+
+    output sim_st: time;
+
+    reaction (sim_start_time) -> sim_st {=
+        // lf_print("Simulation start time: %lld\n", sim_start_time->value);
+        lf_set(sim_st, sim_start_time->value);
+    =}
+
+
+    a = new App();
+    ps = new published_store();
+    us = new unpublished_store();
+    e1 = new EIGtree();
+    e2 = new EIGtree();
+    e3 = new EIGtree();
+
+    // reaction(a.output_force) {=
+    //     lf_print("IvPSimLatency_ms: %lld\n", (lf_time_physical_elapsed() - self->sim_st) / 1000000);
+    //     log_raw("IvPSim", 50, (lf_time_physical_elapsed() - self->sim_st) / 1000000);
+    // =}
+
+    AP_in -> a.AP_in;
+    AV_in -> a.AV_in;
+    CP_in -> a.CP_in;
+    CV_in -> a.CV_in;
+    a.output_force -> force;
+
+    a.output_error -> us.error;
+    a.output_integral -> us.integral;
+    a.output_target -> us.global_target;
+
+    us.output_error -> e1.store_in;
+    us.output_integral -> e2.store_in;
+    us.output_target -> e3.store_in;
+
+    e1_p1_in -> e1.p1_in;
+    e1_p2_in -> e1.p2_in;
+    e1_p3_in -> e1.p3_in;
+    e1_p1p2_in -> e1.p1p2_in;
+    e1_p1p3_in -> e1.p1p3_in;
+    e1_p2p1_in -> e1.p2p1_in;
+    e1_p2p3_in -> e1.p2p3_in;
+    e1_p3p1_in -> e1.p3p1_in;
+    e1_p3p2_in -> e1.p3p2_in;
+
+    e1.round0_out -> e1_round0_out;
+    e1.p0p1_out -> e1_p0p1_out;
+    e1.p0p2_out -> e1_p0p2_out;
+    e1.p0p3_out -> e1_p0p3_out;
+    // e1.p0p1p2_out -> e1_p0p1p2_out;
+    // e1.p0p1p3_out -> e1_p0p1p3_out;
+    // e1.p0p2p1_out -> e1_p0p2p1_out;
+    // e1.p0p2p3_out -> e1_p0p2p3_out;
+    // e1.p0p3p1_out -> e1_p0p3p1_out;
+    // e1.p0p3p2_out -> e1_p0p3p2_out;
+
+    e1.final_out -> ps.input_globalE after 0 ms;
+
+    e2_p1_in -> e2.p1_in;
+    e2_p2_in -> e2.p2_in;
+    e2_p3_in -> e2.p3_in;
+    e2_p1p2_in -> e2.p1p2_in;
+    e2_p1p3_in -> e2.p1p3_in;
+    e2_p2p1_in -> e2.p2p1_in;
+    e2_p2p3_in -> e2.p2p3_in;
+    e2_p3p1_in -> e2.p3p1_in;
+    e2_p3p2_in -> e2.p3p2_in;
+
+    e2.round0_out -> e2_round0_out;
+    e2.p0p1_out -> e2_p0p1_out;
+    e2.p0p2_out -> e2_p0p2_out;
+    e2.p0p3_out -> e2_p0p3_out;
+    // e2.p0p1p2_out -> e2_p0p1p2_out;
+    // e2.p0p1p3_out -> e2_p0p1p3_out;
+    // e2.p0p2p1_out -> e2_p0p2p1_out;
+    // e2.p0p2p3_out -> e2_p0p2p3_out;
+    // e2.p0p3p1_out -> e2_p0p3p1_out;
+    // e2.p0p3p2_out -> e2_p0p3p2_out;
+
+    e2.final_out -> ps.input_globalI after 0 ms;
+
+    e3_p1_in -> e3.p1_in;
+    e3_p2_in -> e3.p2_in;
+    e3_p3_in -> e3.p3_in;
+    e3_p1p2_in -> e3.p1p2_in;
+    e3_p1p3_in -> e3.p1p3_in;
+    e3_p2p1_in -> e3.p2p1_in;
+    e3_p2p3_in -> e3.p2p3_in;
+    e3_p3p1_in -> e3.p3p1_in;
+    e3_p3p2_in -> e3.p3p2_in;
+
+    e3.round0_out -> e3_round0_out;
+    e3.p0p1_out -> e3_p0p1_out;
+    e3.p0p2_out -> e3_p0p2_out;
+    e3.p0p3_out -> e3_p0p3_out;
+    // e3.p0p1p2_out -> e3_p0p1p2_out;
+    // e3.p0p1p3_out -> e3_p0p1p3_out;
+    // e3.p0p2p1_out -> e3_p0p2p1_out;
+    // e3.p0p2p3_out -> e3_p0p2p3_out;
+    // e3.p0p3p1_out -> e3_p0p3p1_out;
+    // e3.p0p3p2_out -> e3_p0p3p2_out;
+
+    e3.final_out -> ps.input_globalT after 0 ms;
+
+    a.request_T -> ps.request_T;
+    a.request_I -> ps.request_I;
+    a.request_E -> ps.request_E;
+
+    ps.output_globalI -> a.input_globalI;
+    ps.output_globalT -> a.input_globalT;
+    ps.output_globalE -> a.input_globalE;
+
+    a.sr -> e1.sr;
+    a.sr -> e2.sr;
+    a.sr -> e3.sr;
+    a.tr -> e1.tr;
+    a.tr -> e2.tr;
+    a.tr -> e3.tr;
+    us.sw -> e1.sw;
+    us.sw -> e2.sw;
+    us.sw -> e3.sw;
+    a.tw -> e1.tw;
+    a.tw -> e2.tw;
+    a.tw -> e3.tw;
+}
+
+reactor plant_sensor {
+    input request_s1: double;
+    input request_s2: double;
+    input request_s3: double;
+    input request_s4: double;
+
+    input CF_in: double;
+
+    output AP_out: double;  // angular position
+    output AV_out: double;  // angular velocity
+    output CP_out: double;  // cart position
+    output CV_out: double;  // cart velocity
+
+    state CF: double = 0.0; // controller force
+
+    state AP: double = 0.001;     // initial angle
+    state AV: double = 0.0;
+    state CP: double = 0.0;
+    state CV: double = 0.0;
+
+    // Fixed pendulum/cart parameters (you can make these inputs if you like)
+    state m: double = 0.5;     // pendulum mass
+    state M: double = 7;    // cart mass
+    state l: double = 0.3;     // pendulum length
+    state g: double = 9.8;     // gravity
+    state LF: double = 0;     // linear force coefficient (unused here)
+    state AF: double = 1;     // angular force coefficients
+    state TS: double = 0.05;   // time step for simulation
+    state PF: double = 0;     // pendulum force (unused here)
+    state multiplier: double = 0.05; // multiplier for the controller force
+
+    reaction (CF_in) {=
+        self->CF = CF_in -> value;  // update controller force
+        // log_raw("IvPSimLatency", 50, (lf_time_physical_elapsed() - self->sim_start_time) / 1000000);
+    =}
+
+    reaction (request_s1, request_s2, request_s3, request_s4) -> AP_out, AV_out, CP_out, CV_out {=
+        double p_f = self->PF;       // controller force
+        double c_f = self->CF;       // controller force
+
+        // Alias current state
+        double a_p = self->AP;
+        double a_v = self->AV;
+        double c_p = self->CP;
+        double c_v = self->CV;
+        double M = self->M;
+        double m = self->m;
+        double l = self->l;
+        double g = self->g;
+        double f_lin = self->LF;
+        double f_ang = self->AF;
+        double h = TIMESTEP; // time step
+
+        // Compute the four derivatives for RK4
+        double K1 = a_v;
+
+        double L1 = (
+                p_f * cos(a_p)
+                - (M + m) * g * sin(a_p)
+                + m * l * cos(a_p) * sin(a_p) * sqr(a_v)
+                + f_lin * cos(a_p) * c_v
+                + (M + m) * f_ang / m * a_v
+            ) / (m * l * sqr(cos(a_p)) - (M + m) * l);
+
+        double M1 = c_v;
+
+        double N1 = (
+                p_f
+                + m * l * sin(a_p) * sqr(a_v)
+                - m * g * cos(a_p) * sin(a_p)
+                + cos(a_p) * f_ang * a_v
+            ) / (M + m - m * sqr(cos(a_p)));
+
+        double K2 = a_v + h / 2.0 * L1;
+
+        double L2 = (
+                (p_f + c_f) / 2.0 * cos(a_p + h / 2.0 * K1)
+                - (M + m) * g * sin(a_p + h / 2.0 * K1)
+                + m * l * cos(a_p + h / 2.0 * K1) * sin(a_p + h / 2.0
+                 * K1) * sqr(a_v + h / 2.0 * L1)
+                + f_lin * cos(a_p + h / 2.0 * K1) * (c_v + h / 2.0 * N1)
+                + (M + m) * f_ang / m * (a_v + h / 2.0 * L1)
+            ) / (m * l * sqr(cos(a_p + h / 2.0 * K1)) - (M + m) * l);
+
+        double M2 = c_v + h / 2.0 * N1;
+
+        double N2 = (
+                (p_f + c_f) / 2.0
+                + m * l * sin(a_p + h / 2.0 * K1) * sqr(a_v + h / 2.0
+                     * L1)
+                 - m * g * cos(a_p + h / 2.0 * K1) * sin(a_p + h / 2.0
+                     * K1)
+                 + cos(a_p + h / 2.0 * K1) * f_ang * (a_v + h / 2.0 *
+                     L1)
+            ) / (M + m - m * sqr(cos(a_p + h / 2.0 * K1)));
+
+        double K3 = a_v + h / 2.0 * L2;
+
+        double L3 = (
+                (p_f + c_f) / 2.0 * cos(a_p + h / 2.0 * K2)
+                - (M + m) * g * sin(a_p + h / 2.0 * K2)
+                + m * l * cos(a_p + h / 2.0 * K2) * sin(a_p + h / 2.0
+                     * K2) * sqr(a_v + h / 2.0 * L2)
+                + f_lin * cos(a_p + h / 2.0 * K2) * (c_v + h / 2.0 * N2)
+                + (M + m) * f_ang/m * (a_v + h / 2.0 * L2)
+            ) / (m * l * sqr(cos(a_p + h / 2.0 * K2)) - (M + m) * l);
+
+        double M3 = c_v + h / 2.0 * N2;
+
+        double N3 = (
+                (p_f + c_f) / 2.0
+                + m * l * sin(a_p
+                              + h / 2.0 * K2) * sqr(a_v + h / 2.0 * L2)
+                - m * g * cos(a_p + h / 2.0 * K2) * sin(a_p + h / 2.0
+                     * K2)
+                + cos(a_p + h / 2.0 * K2) * f_ang * (a_v + h / 2.0 *
+                     L2)
+            ) / (M + m - m*sqr(cos(a_p + h / 2.0 * K2)));
+
+        double K4 = a_v + h * L3;
+
+        double L4 = (
+                p_f * cos(a_p + h * K3)
+                - (M + m) * g * sin(a_p + h * K3)
+                + m * l * cos(a_p + h * K3) * sin(a_p + h * K3) * sqr(
+                a_v + h * L3)
+                + f_lin * cos(a_p + h * K3) * (c_v + h * N3)
+                + (M + m) * f_ang/m * (a_v + h * L3)
+            ) / (m * l * sqr(cos(a_p + h * K3)) - (M + m) * l);
+
+        double M4 = c_v + h * N3;
+
+        double N4 = (
+                p_f
+                + m * l * sin(a_p + h * K3) * sqr(a_v + h * L3)
+                - m * g * cos(a_p + h * K3) * sin(a_p + h * K3)
+                + cos(a_p + h * K3) * f_ang * (a_v + h * L3)
+            ) / (M + m - m*sqr(cos(a_p + h * K3)));
+
+        self->AP = a_p + h * (1.0 / 6.0 * K1 + 2.0 / 6.0 * K2 + 2.0 / 6.0 * K3 +
+                               1.0 / 6.0 * K4);
+        self->AV = a_v + h * (1.0 / 6.0 * L1 + 2.0 / 6.0 * L2 + 2.0 / 6.0 * L3 +
+                               1.0 / 6.0 * L4);
+        self->CP = c_p + h * (1.0 / 6.0 * M1 + 2.0 / 6.0 * M2 + 2.0 / 6.0 * M3 +
+                               1.0 / 6.0 * M4);
+        self->CV = c_v + h * (1.0 / 6.0 * N1 + 2.0 / 6.0 * N2 + 2.0 / 6.0 * N3 +
+                               1.0 / 6.0 * N4);
+
+        // Publish updated values
+        lf_set(AP_out, self->AP);
+        // lf_print("Pendulum angle: %f, velocity: %f\n", self->AP, self->AV);
+        lf_set(AV_out, self->AV);
+        lf_set(CP_out, self->CP);
+        lf_set(CV_out, self->CV);
+        // lf_print("Cart position: %f, velocity: %f\n", self->CP, self->CV);
+        
+
+        self->PF = c_f; // update pendulum force
+    =} // Note: should be replaced with actual plant dynamics
+}
+
+reactor plant_actuator {
+    input a1_force: double;
+    input a2_force: double;
+    input a3_force: double;
+    input a4_force: double;
+
+    output CF_force: double;
+
+    input sim_st_p1: time;
+    input sim_st_p2: time;
+    input sim_st_p3: time;
+    input sim_st_p4: time;
+
+    state sim_start_time_p1: time = 0 ns;
+    state sim_start_time_p2: time = 0 ns;
+    state sim_start_time_p3: time = 0 ns;
+    state sim_start_time_p4: time = 0 ns;
+
+    reaction (sim_st_p1) {=
+        self->sim_start_time_p1 = sim_st_p1->value;
+        // lf_print("Plant start time: %lld\n", self->sim_start_time);
+    =}
+
+    reaction (sim_st_p2) {=
+        self->sim_start_time_p2 = sim_st_p2->value;
+        // lf_print("Plant start time: %lld\n", self->sim_start_time);
+    =}
+
+    reaction (sim_st_p3) {=
+        self->sim_start_time_p3 = sim_st_p3->value;
+        // lf_print("Plant start time: %lld\n", self->sim_start_time);
+    =}
+
+    reaction (sim_st_p4) {=
+        self->sim_start_time_p4 = sim_st_p4->value;
+        // lf_print("Plant start time: %lld\n", self->sim_start_time);
+    =}
+
+    reaction(a1_force, a2_force, a3_force, a4_force) -> CF_force {=
+        if (a1_force -> is_present && a2_force -> is_present &&
+            a3_force -> is_present && a4_force -> is_present) {
+            // lf_print("Plant received forces: %f, %f, %f, %f\n",
+            //          a1_force->value, a2_force->value,
+            //          a3_force->value, a4_force->value);
+            lf_set(CF_force, (a1_force->value + a2_force->value +
+                              a3_force->value + a4_force->value) / 4.0);
+            log_raw2("IvPSimLatency", 50, (lf_time_physical_elapsed() - 
+                     self->sim_start_time_p1) / 1000000, (lf_time_physical_elapsed() - lf_time_logical_elapsed()) / 1000000);
+            log_raw2("IvPSimLatency", 50, (lf_time_physical_elapsed() - 
+                     self->sim_start_time_p2) / 1000000, (lf_time_physical_elapsed() - lf_time_logical_elapsed()) / 1000000);
+            log_raw2("IvPSimLatency", 50, (lf_time_physical_elapsed() - 
+                     self->sim_start_time_p3) / 1000000, (lf_time_physical_elapsed() - lf_time_logical_elapsed()) / 1000000);
+            log_raw2("IvPSimLatency", 50, (lf_time_physical_elapsed() -
+                        self->sim_start_time_p4) / 1000000, (lf_time_physical_elapsed() - lf_time_logical_elapsed()) / 1000000);
+            // lf_print("IvPSimLatency_ms: %lld\n",
+            //          (lf_time_physical_elapsed() - self->sim_start_time_p1) / 1000000);
+            // lf_print("IvPSimLatency_ms: %lld\n",
+            //          (lf_time_physical_elapsed() - self->sim_start_time_p2) / 1000000);
+            // lf_print("IvPSimLatency_ms: %lld\n",
+            //          (lf_time_physical_elapsed() - self->sim_start_time_p3) / 1000000);
+            // lf_print("IvPSimLatency_ms: %lld\n",
+            //          (lf_time_physical_elapsed() - self->sim_start_time_p4) / 1000000);
+        }
+    =} // Note: should be replaced with actual plant dynamics
+}
+
+reactor plant {
+    input a1_force: double;
+    input a2_force: double;
+    input a3_force: double;
+    input a4_force: double;
+    input request_s1: double;
+    input request_s2: double;
+    input request_s3: double;
+    input request_s4: double;
+
+    output s1_AP_out: double;
+    output s1_AV_out: double;
+    output s1_CP_out: double;
+    output s1_CV_out: double;
+    output s2_AP_out: double;
+    output s2_AV_out: double;
+    output s2_CP_out: double;
+    output s2_CV_out: double;
+    output s3_AP_out: double;
+    output s3_AV_out: double;
+    output s3_CP_out: double;
+    output s3_CV_out: double;
+    output s4_AP_out: double;
+    output s4_AV_out: double;
+    output s4_CP_out: double;
+    output s4_CV_out: double;
+
+    input sim_st_p1: time;
+    input sim_st_p2: time;
+    input sim_st_p3: time;
+    input sim_st_p4: time;
+
+    // output sim_start_time: time;
+
+    // reaction(sim_st) -> sim_start_time {=
+    //     lf_set(sim_start_time, sim_st->value);
+    // =}
+
+    s = new plant_sensor();
+    a = new plant_actuator();
+
+    sim_st_p1 -> a.sim_st_p1;
+    sim_st_p2 -> a.sim_st_p2;
+    sim_st_p3 -> a.sim_st_p3;
+    sim_st_p4 -> a.sim_st_p4;
+
+    request_s1 -> s.request_s1;
+    request_s2 -> s.request_s2;
+    request_s3 -> s.request_s3;
+    request_s4 -> s.request_s4;
+
+    s.AP_out -> s1_AP_out;
+    s.AV_out -> s1_AV_out;
+    s.CP_out -> s1_CP_out;
+    s.CV_out -> s1_CV_out;
+
+    s.AP_out -> s2_AP_out;
+    s.AV_out -> s2_AV_out;
+    s.CP_out -> s2_CP_out;
+    s.CV_out -> s2_CV_out;
+
+    s.AP_out -> s3_AP_out;
+    s.AV_out -> s3_AV_out;
+    s.CP_out -> s3_CP_out;
+    s.CV_out -> s3_CV_out;
+
+    s.AP_out -> s4_AP_out;
+    s.AV_out -> s4_AV_out;
+    s.CP_out -> s4_CP_out;
+    s.CV_out -> s4_CV_out;
+
+    a1_force -> a.a1_force;
+    a2_force -> a.a2_force;
+    a3_force -> a.a3_force;
+    a4_force -> a.a4_force;
+
+    a.CF_force -> s.CF_in after 0 ms;
+}
+
+// federated reactor inverted_pendulum {
+federated reactor inverted_pendulum at 10.34.167.169 {
+    s1 = new Sensor() at 10.34.167.170;
+    s2 = new Sensor() at 10.34.167.171;
+    s3 = new Sensor() at 10.34.167.172;
+    s4 = new Sensor() at 10.34.167.173;
+    p1 = new pi1() at 10.34.167.170;
+    p2 = new pi2() at 10.34.167.171;
+    p3 = new pi3() at 10.34.167.172;
+    p4 = new pi4() at 10.34.167.173;
+    plant = new plant() at 10.34.167.169;
+
+    // s1 = new Sensor();
+    // s2 = new Sensor();
+    // s3 = new Sensor();
+    // s4 = new Sensor();
+    // p1 = new pi1();
+    // p2 = new pi2();
+    // p3 = new pi3();
+    // p4 = new pi4();
+    // plant = new plant();
+
+    p1.sim_st -> plant.sim_st_p1;
+    p2.sim_st -> plant.sim_st_p2;
+    p3.sim_st -> plant.sim_st_p3;
+    p4.sim_st -> plant.sim_st_p4;
+
+    s1.sim_start_time -> p1.sim_start_time;
+    s2.sim_start_time -> p2.sim_start_time;
+    s3.sim_start_time -> p3.sim_start_time;
+    s4.sim_start_time -> p4.sim_start_time;
+
+    s1.request -> plant.request_s1;
+    s2.request -> plant.request_s2;
+    s3.request -> plant.request_s3;
+    s4.request -> plant.request_s4;
+
+    plant.s1_AP_out -> s1.AP_in;
+    plant.s1_AV_out -> s1.AV_in;
+    plant.s1_CP_out -> s1.CP_in;
+    plant.s1_CV_out -> s1.CV_in;
+
+    plant.s2_AP_out -> s2.AP_in;
+    plant.s2_AV_out -> s2.AV_in;
+    plant.s2_CP_out -> s2.CP_in;
+    plant.s2_CV_out -> s2.CV_in;
+
+    plant.s3_AP_out -> s3.AP_in;
+    plant.s3_AV_out -> s3.AV_in;
+    plant.s3_CP_out -> s3.CP_in;
+    plant.s3_CV_out -> s3.CV_in;
+
+    plant.s4_AP_out -> s4.AP_in;
+    plant.s4_AV_out -> s4.AV_in;
+    plant.s4_CP_out -> s4.CP_in;
+    plant.s4_CV_out -> s4.CV_in;
+
+    s1.AP_out -> p1.AP_in;
+    s1.AV_out -> p1.AV_in;
+    s1.CP_out -> p1.CP_in;
+    s1.CV_out -> p1.CV_in;
+
+    s2.AP_out -> p2.AP_in;
+    s2.AV_out -> p2.AV_in;
+    s2.CP_out -> p2.CP_in;
+    s2.CV_out -> p2.CV_in;
+
+    s3.AP_out -> p3.AP_in;
+    s3.AV_out -> p3.AV_in;
+    s3.CP_out -> p3.CP_in;
+    s3.CV_out -> p3.CV_in;
+
+    s4.AP_out -> p4.AP_in;
+    s4.AV_out -> p4.AV_in;
+    s4.CP_out -> p4.CP_in;
+    s4.CV_out -> p4.CV_in;
 
     p1.e1_round0_out -> p2.e1_p1_in;
     p1.e1_round0_out -> p3.e1_p1_in;
@@ -179,8 +2515,8 @@ federated reactor inverted_pendulum {
     p4.e3_p0p3_out -> p1.e3_p3p2_in;
     p4.e3_p0p3_out -> p2.e3_p3p2_in;
 
-    p1.force -> a.p1_force;
-    p2.force -> a.p2_force;
-    p3.force -> a.p3_force;
-    p4.force -> a.p4_force;
+    p1.force -> plant.a1_force;
+    p2.force -> plant.a2_force;
+    p3.force -> plant.a3_force;
+    p4.force -> plant.a4_force;
 }

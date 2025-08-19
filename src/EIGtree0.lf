@@ -1,19 +1,26 @@
 target C
 
-preamble {=
-    struct tuple {
-        char key[32 + 1];
-        char value[64 + 1];
-        uint64_t time;
-    };
-=}
+import inverted_pendulum from "inverted_pendulum.lf";
 
+// preamble {=
+    // typedef struct {
+    //     char key[32 + 1];
+    //     double value;
+    //     uint64_t time;
+    // } tuple;
+// =}
+
+  preamble {=
+    #include "common_types.h"
+  =}
+  
 reactor EIGtree0 {
     input store_in: tuple;
 
     output round0_out: tuple;
 
     reaction(store_in) -> round0_out {=
-        lf_set(round0_out, store_in);
+        lf_set(round0_out, store_in->value);
+        // lf_print("EIGtree0 received: %f\n", store_in->value.value);
     =}
 }

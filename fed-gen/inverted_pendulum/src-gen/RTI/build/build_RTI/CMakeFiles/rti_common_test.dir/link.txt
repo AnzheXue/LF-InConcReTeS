@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/rti_common_test.dir/test/rti_common_test.c.o CMakeFiles/rti_common_test.dir/__/__/__/platform/impl/platform.c.o CMakeFiles/rti_common_test.dir/__/__/__/trace/impl/src/trace_impl.c.o -o ../rti_common_test  librti_lib.a liblf-platform-impl.a ../../trace/impl/lib/lf-trace-impl.a liblf-low-level-platform-impl.a 

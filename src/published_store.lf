@@ -1,23 +1,141 @@
 target C
 
+import inverted_pendulum from "inverted_pendulum.lf";
+
+// preamble {=
+//     typedef struct {
+//         double value;
+//         uint64_t time;
+//     } version;
+
+//     typedef struct {
+//         char key[32 + 1];
+//         double value;
+//         uint64_t time;
+//     } tuple;
+
+//     #define MAX_VERSIONS 20
+//     #define PUBLISHING_INTERVAL 10000000
+//     version vt[MAX_VERSIONS];
+//     version vi[MAX_VERSIONS];
+//     version ve[MAX_VERSIONS];
+// =}
+
+  preamble {=
+    #include "common_types.h"
+  =}
+
 reactor published_store {
     input input_globalT: tuple;
     input input_globalI: tuple;
     input input_globalE: tuple;
+
+    input request_T: time; // publishing time
+    input request_I: time;
+    input request_E: time;
     
     output output_globalT: double;
     output output_globalI: double;
     output output_globalE: double;
 
-    reaction(input_globalT) -> output_globalT{=
-        lf_set(output_globalT, input_globalT.value);
+    state g_target: tuple = {"target", 0.0, 0}; // Default target value
+    state global_integral: tuple = {"integral", 0.0, 0}; // Default integral value
+    state global_error: tuple = {"error", 0.0, 0}; // Default error value
+
+    state version_T_count: int = 0;
+    state version_I_count: int = 0;
+    state version_E_count: int = 0;
+
+    state min_index_T: int = 0;
+    state min_index_I: int = 0;
+    state min_index_E: int = 0;
+
+    reaction(input_globalT) {=
+        version i;
+        i.value = self->g_target.value;
+        i.time = self->g_target.time;
+        vt[self->version_T_count % MAX_VERSIONS] = i;
+        self->min_index_T = (self->version_T_count / MAX_VERSIONS) % MAX_VERSIONS;
+        self->version_T_count++;
+        self->g_target = input_globalT->value;
     =}
 
-    reaction(input_globalI) -> output_globalI {=
-        lf_set(output_globalI, input_globalI.value);
+    reaction(input_globalI) {=
+        version i;
+        i.value = self->global_integral.value;
+        i.time = self->global_integral.time;
+        vi[self->version_I_count % MAX_VERSIONS] = i;
+        self->min_index_I = (self->version_I_count / MAX_VERSIONS) % MAX_VERSIONS;
+        self->version_I_count++;
+        self->global_integral = input_globalI->value;
     =}
 
-    reaction(input_globalE) -> output_globalE {=
-        lf_set(output_globalE, input_globalE.value);
+    reaction(input_globalE) {=
+        version i;
+        i.value = self->global_error.value;
+        i.time = self->global_error.time;
+        ve[self->version_E_count % MAX_VERSIONS] = i;
+        self->min_index_E = (self->version_E_count / MAX_VERSIONS) % MAX_VERSIONS;
+        self->version_E_count++;
+        self->global_error = input_globalE->value;
+    =}
+
+    reaction (request_T) -> output_globalT {=
+        // lf_print("request_T = %lld\n", request_T->value);
+        if (self->g_target.time <= request_T->value) {
+            // lf_print("T:1");
+            lf_set(output_globalT, self->g_target.value);
+        } else if(vt[self->min_index_T].time > request_T->value || self->version_T_count == 0) {
+            // lf_print("T:2");
+            lf_set(output_globalT, -100000.0);
+        } else {
+            // lf_print("T:3");
+            // lf_print("Skipping update for global target, request time: %lld, input time: %lld\n", request_T->value, self->g_target.time);
+            uint64_t t_min = vt[self->min_index_T].time;
+            uint64_t t_diff = request_T->value - t_min;
+            uint64_t n = t_diff / PUBLISHING_INTERVAL;
+            lf_set(output_globalT, vt[(self->min_index_T + n) % MAX_VERSIONS].value); // Set to default if not updated
+        }
+        // lf_print("Published global target: %f\n", output_globalT->value);
+    =}
+
+    reaction (request_I) -> output_globalI {=
+        if (self->global_integral.time <= request_I->value) {
+            // lf_print("I:1");
+            // lf_print("Publishing global integral: %lld\n", self->global_integral.value);
+            lf_set(output_globalI, self->global_integral.value);
+        } else if(vi[self->min_index_I].time > request_I->value || self->version_I_count == 0) {
+            // lf_print("I:2");
+            lf_set(output_globalI, -100000.0);
+        } else {
+            // lf_print("I:3");
+            // lf_print("Skipping update for global integral, request time: %lld, input time: %lld\n", request_I->value, self->global_integral.time);
+            uint64_t t_min = vi[self->min_index_I].time;
+            uint64_t t_diff = request_I->value - t_min;
+            uint64_t n = t_diff / PUBLISHING_INTERVAL;
+            lf_set(output_globalI, vi[(self->min_index_I + n) % MAX_VERSIONS].value); // Set to default if not updated
+        }
+        // lf_print("Published global integral: %f\n", output_globalI->value);
+    =}
+
+    reaction (request_E) -> output_globalE {=
+        // lf_print("request_E = %lld\n", request_E->value);
+        if (self->global_error.time <= request_E->value) {
+            // lf_print("E:1");
+            // lf_print("Publishing global error: %lld\n", self->global_error.value);
+        //     lf_print("Publishing global error: %lld\n", self->global_error.value);
+            lf_set(output_globalE, self->global_error.value);
+        } else if(ve[self->min_index_E].time > request_E->value || self->version_E_count == 0) {
+            // lf_print("E:2");
+            lf_set(output_globalE, -100000.0);
+        } else {
+            // lf_print("E:3");
+            // lf_print("Skipping update for global integral, request time: %lld, input time: %lld\n", request_I->value, self->global_integral.time);
+            uint64_t t_min = ve[self->min_index_E].time;
+            uint64_t t_diff = request_E->value - t_min;
+            uint64_t n = t_diff / PUBLISHING_INTERVAL;
+            lf_set(output_globalE, ve[(self->min_index_E + n) % MAX_VERSIONS].value); // Set to default if not updated
+        }
+        // lf_print("Published global error: %f\n", output_globalE->value);
     =}
 }

@@ -1,12 +1,24 @@
 target C
 
-preamble {=
-    struct tuple {
-        char key[32 + 1];
-        char value[64 + 1];
-        uint64_t time;
-    };
-=}
+import inverted_pendulum from "inverted_pendulum.lf";
+
+// preamble {=
+//     typedef struct {
+//         char key[32 + 1];
+//         double value;
+//         uint64_t time;
+//     } tuple;
+
+//     typedef struct {
+//         double value;
+//         int count;
+//         int first_index;
+//     } tally;
+// =}
+
+  preamble {=
+    #include "common_types.h"
+  =}
 
 reactor EIGtreeReduction {
     input round0_in: tuple;
@@ -25,45 +37,35 @@ reactor EIGtreeReduction {
     reaction(round0_in, p0p1_in, p0p2_in, p0p3_in,
          p0p1p2_in, p0p1p3_in, p0p2p1_in, p0p2p3_in,
          p0p3p1_in, p0p3p2_in) -> final_out {=
-
-        if (is_present(round0_in) &&
-            is_present(p0p1_in) && is_present(p0p2_in) && is_present(p0p3_in) &&
-            is_present(p0p1p2_in) && is_present(p0p1p3_in) &&
-            is_present(p0p2p1_in) && is_present(p0p2p3_in) &&
-            is_present(p0p3p1_in) && is_present(p0p3p2_in)) {
+        if (round0_in->is_present &&
+            p0p1_in->is_present && p0p2_in->is_present && p0p3_in->is_present &&
+            p0p1p2_in->is_present && p0p1p3_in->is_present &&
+            p0p2p1_in->is_present && p0p2p3_in->is_present &&
+            p0p3p1_in->is_present && p0p3p2_in->is_present) {
             tuple inputs[10] = {
-                round0_in, p0p1_in, p0p2_in, p0p3_in,
-                p0p1p2_in, p0p1p3_in, p0p2p1_in, p0p2p3_in,
-                p0p3p1_in, p0p3p2_in
+                round0_in->value, p0p1_in->value, p0p2_in->value, p0p3_in->value,
+                p0p1p2_in->value, p0p1p3_in->value, p0p2p1_in->value, p0p2p3_in->value,
+                p0p3p1_in->value, p0p3p2_in->value
             };
 
-            struct {
-                char value[65];
-                int count;
-                int first_index;
-            } tally[10];
-
             int unique_count = 0;
+            tally t[10] = {0};
 
             for (int i = 0; i < 10; i++) {
                 int found = 0;
                 for (int j = 0; j < unique_count; j++) {
-                    if (strcmp(inputs[i].value, tally[j].value) == 0) {
-                        tally[j].count++;
-                        if (inputs[i].time > tally[j].latest_time) {
-                            tally[j].latest_time = inputs[i].time;
-                            tally[j].first_index = i;
-                        }
+                    if (inputs[i].value == t[j].value) {
+                        t[j].count++;
+                        t[j].first_index = i;
                         found = 1;
                         break;
                     }
                 }
 
                 if (!found) {
-                    strcpy(tally[unique_count].value, inputs[i].value);
-                    tally[unique_count].count = 1;
-                    tally[unique_count].latest_time = inputs[i].time;
-                    tally[unique_count].first_index = i;
+                    t[unique_count].value = inputs[i].value;
+                    t[unique_count].count = 1;
+                    t[unique_count].first_index = i;
                     unique_count++;
                 }
             }
@@ -71,12 +73,13 @@ reactor EIGtreeReduction {
             int max_count = 0;
             int best_index = 0;
             for (int i = 0; i < unique_count; i++) {
-                if (tally[i].count > max_count) {
-                    max_count = tally[i].count;
-                    best_index = tally[i].first_index;
+                if (t[i].count > max_count) {
+                    max_count = t[i].count;
+                    best_index = t[i].first_index;
                 }
             }
             lf_set(final_out, inputs[best_index]);
+            // lf_print("EIGtreeReduction final output: %f\n", inputs[best_index].value);
         }
     =}
 }

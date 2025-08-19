@@ -4,13 +4,17 @@ import EIGtree0 from "EIGtree0.lf";
 import EIGtree1 from "EIGtree1.lf";
 import EIGtree2 from "EIGtree2.lf";
 import EIGtreeReduction from "EIGtreeReduction.lf";
+import inverted_pendulum from "inverted_pendulum.lf";
 
+// preamble {=
+//     typedef struct {
+//         char key[32 + 1];
+//         double value;
+//         uint64_t time;
+//     } tuple;
+// =}
 preamble {=
-    struct tuple {
-        char key[32 + 1];
-        char value[64 + 1];
-        uint64_t time;
-    };
+    #include "common_types.h"
 =}
 
 reactor EIGtree {

@@ -1,0 +1,60 @@
+Start time:, 1754072193349933818
+End time:, 1754072198351102530
+Total time:, 5001168712
+
+Total Event Occurrences
+Reaction starts, 3424
+Reaction ends, 3424
+Schedule called, 101
+Worker wait starts, 3424
+Worker wait ends, 3424
+Scheduler advancing time starts, 401
+Scheduler advancing time ends, 401
+Sending TIMESTAMP, 1
+Sending NET, 703
+Sending LTC, 101
+Sending FED_ID, 1
+Sending RESIGN, 1
+Sending PORT_ABS, 1500
+Sending TAGGED_MSG, 505
+Receiving ACK, 1
+Receiving TIMESTAMP, 1
+Receiving PTAG, 401
+Receiving PORT_ABS, 1200
+Receiving TAGGED_MSG, 404
+
+Reaction Executions
+Reactor, Reaction, Occurrences, Total Time, Pct Total Time, Avg Time, Max Time, Min Time
+s3, 0, 101, 32322, 0.000646, 320, 954, 125
+s3, 1, 101, 27279, 0.000545, 270, 831, 104
+s3, 2, 101, 19832, 0.000397, 196, 684, 50
+s3, 3, 101, 21056, 0.000421, 208, 737, 63
+s3, 4, 101, 11505, 0.000230, 113, 385, 43
+ns_federate__p3, 0, 1, 142, 0.000003, 142, 142, 142
+ns_federate__p3, 1, 101, 4747342, 0.094925, 47003, 366862, 6251
+ns_federate__p3, 2, 401, 7548987, 0.150944, 18825, 137960, 51
+ns_federate__p3_0, 0, 1, 128, 0.000003, 128, 128, 128
+ns_federate__p3_0, 1, 101, 801736, 0.016031, 7937, 163951, 2443
+ns_federate__p3_0, 2, 401, 4729700, 0.094572, 11794, 3247619, 44
+ns_federate__p3_1, 0, 1, 107, 0.000002, 107, 107, 107
+ns_federate__p3_1, 1, 101, 534977, 0.010697, 5296, 55363, 2317
+ns_federate__p3_1, 2, 401, 925699, 0.018510, 2308, 38522, 43
+ns_federate__p3_2, 0, 1, 106, 0.000002, 106, 106, 106
+ns_federate__p3_2, 1, 101, 578379, 0.011565, 5726, 156883, 2158
+ns_federate__p3_2, 2, 401, 1052257, 0.021040, 2624, 53465, 41
+ns_federate__plant_1, 0, 1, 570, 0.000011, 570, 570, 570
+ns_federate__plant_1, 1, 101, 5172261, 0.103421, 51210, 218059, 12117
+ns_federate__plant_1, 2, 401, 2811276, 0.056212, 7010, 161131, 48
+nr_federate__s3, 0, 101, 198338, 0.003966, 1963, 52263, 479
+nr_federate__s3_0, 0, 101, 105566, 0.002111, 1045, 4209, 307
+nr_federate__s3_1, 0, 101, 96034, 0.001920, 950, 4756, 220
+nr_federate__s3_2, 0, 101, 98295, 0.001965, 973, 5006, 290
+
+Schedule calls
+Trigger, Occurrences
+s3.t, 101
+
+Workers Waiting
+Worker, Waiting On, Occurrences, Total Time, Pct Total Time, Avg Time, Max Time, Min Time
+0, reaction queue, 1671, 4984957890, 99.675859, 2983218, 450526236, 52
+1, reaction queue, 1753, 4978450513, 99.545742, 2839960, 350506712, 47

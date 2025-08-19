@@ -1,0 +1,184 @@
+target C {
+  cmake-include: "include/federate__a_extension.cmake",
+  compile-definitions: {
+    EXECUTABLE_PREAMBLE: "",
+    NUMBER_OF_FEDERATES: "9",
+    FEDERATE_ID: "8",
+    FEDERATED: "",
+    FEDERATED_CENTRALIZED: "",
+    LF_CLOCK_SYNC: "1",
+    _LF_FEDERATE_NAMES_COMMA_SEPARATED: "\"federate__s1,federate__s2,federate__s3,federate__s4,federate__p1,federate__p2,federate__p3,federate__p4,federate__a\""
+  },
+  _fed_setup: "include/_federate__a_preamble.h",
+  keepalive: true,
+  logging: "log",
+  single-threaded: false,
+  timeout: 1 s
+}
+
+
+NONE preamble {=
+typedef struct {
+    char key[32 + 1];
+    double value;
+    uint64_t time;
+} tuple;
+
+typedef struct {
+    double value;
+    int count;
+    int first_index;
+} tally;
+
+#include <string.h>
+=}
+preamble {=
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "core/federated/federate.h"
+#include "core/federated/network/net_common.h"
+#include "core/federated/network/net_util.h"
+#include "core/federated/network/socket_common.h"
+#include "core/federated/clock-sync.h"
+#include "core/threaded/reactor_threaded.h"
+#include "core/utils/util.h"
+extern federate_instance_t _fed;
+#ifdef __cplusplus
+}
+#endif
+
+
+=}
+
+reactor actuator {
+  input p1_force: double
+  input p2_force: double
+  input p3_force: double
+  input p4_force: double
+
+  state force: double
+
+  reaction(
+      p1_force,
+      p2_force,
+      p3_force,
+      p4_force) {=
+    if (p1_force -> is_present) {
+        self->force = p1_force -> value;
+        lf_print("Actuator received p1_force: %f\n", p1_force->value);
+    } else if (p2_force -> is_present) {
+        self->force = p2_force -> value;
+        lf_print("Actuator received p2_force: %f\n", p2_force->value);
+    } else if (p3_force -> is_present) {
+        self->force = p3_force -> value;
+        lf_print("Actuator received p3_force: %f\n", p3_force->value);
+    } else if (p4_force -> is_present) {
+        self->force = p4_force -> value;
+        lf_print("Actuator received p4_force: %f\n", p4_force->value);
+    }
+  =}
+}
+reactor _ap1_force {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+reactor _ap2_force {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+reactor _ap3_force {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+reactor _ap4_force {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+@_network_receiver
+reactor NetworkReceiver_43 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_71 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_99 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_127 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_fed_config()
+main reactor  {
+
+    a = new actuator() at 10.34.167.170;
+    
+    
+    
+    
+    
+    
+    @_tpoLevel(28)
+    nr_federate__a = new NetworkReceiver_43()
+    @_tpoLevel(28)
+    nr_federate__a_0 = new NetworkReceiver_71()
+    @_tpoLevel(28)
+    nr_federate__a_1 = new NetworkReceiver_99()
+    @_tpoLevel(28)
+    nr_federate__a_2 = new NetworkReceiver_127()
+    _ap1_force0 = new _ap1_force()
+    _ap2_force0 = new _ap2_force()
+    _ap3_force0 = new _ap3_force()
+    _ap4_force0 = new _ap4_force()
+    _ap1_force0.port -> a.p1_force
+    _ap2_force0.port -> a.p2_force
+    _ap3_force0.port -> a.p3_force
+    _ap4_force0.port -> a.p4_force
+    nr_federate__a.msg -> _ap1_force0.port0
+    nr_federate__a_0.msg -> _ap2_force0.port0
+    nr_federate__a_1.msg -> _ap3_force0.port0
+    nr_federate__a_2.msg -> _ap4_force0.port0
+}

@@ -1,0 +1,1307 @@
+target C {
+  cmake-include: "include/federate__plant_extension.cmake",
+  compile-definitions: {
+    EXECUTABLE_PREAMBLE: "",
+    NUMBER_OF_FEDERATES: "9",
+    FEDERATE_ID: "8",
+    FEDERATED: "",
+    FEDERATED_CENTRALIZED: "",
+    LF_CLOCK_SYNC: "1",
+    _LF_FEDERATE_NAMES_COMMA_SEPARATED: "\"federate__s1,federate__s2,federate__s3,federate__s4,federate__p1,federate__p2,federate__p3,federate__p4,federate__plant\""
+  },
+  _fed_setup: "include/_federate__plant_preamble.h",
+  keepalive: true,
+  single-threaded: false,
+  timeout: 100 s,
+  tracing: true
+}
+
+
+NONE preamble {=
+typedef struct {
+    char key[32 + 1];
+    double value;
+    uint64_t time;
+} tuple;
+
+typedef struct {
+    double value;
+    int count;
+    int first_index;
+} tally;
+
+typedef struct {
+    double value;
+    uint64_t time;
+} version;
+
+#include <string.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+static int successful_reads = 0;
+static int total_reads = 0;
+
+static int successful_writes = 0;
+static int total_writes = 0;
+
+static FILE* _csv = NULL;
+
+static void open_csv() {
+    if (!_csv) {
+        _csv = fopen("raw_timing_KVS.csv", "w");
+        fprintf(_csv, "metric,period_ms,ms,successful_reads,total_reads,successful_writes,total_writes\n");
+        fflush(_csv);
+    }
+}
+
+static void log_raw(const char* metric, long long period_ms, long long delta, int sr, int tr, int sw, int tw) {
+    open_csv();
+    fprintf(_csv, "%s,%lld,%lld,%d,%d,%d,%d\n", metric, period_ms, delta,
+            sr, tr, sw, tw);
+    fflush(_csv);
+}
+
+// static void log_raw(const char* metric, long long period_ms, long long delta) {
+//     open_csv();
+//     fprintf(_csv, "%s,%lld,%lld,%d,%d,%d,%d\n", metric, period_ms, delta,
+//             successful_reads, total_reads, successful_writes, total_writes);
+//     fflush(_csv);
+// }
+
+static FILE* _csv2 = NULL;
+static void open_csv2() {
+    if (!_csv2) {
+        _csv2 = fopen("raw_timing_IvPSim.csv", "w");
+        fprintf(_csv2, "metric,period_ms,ms,lag_ms\n");
+        fflush(_csv2);
+    }
+}
+
+static void log_raw2(const char* metric, long long period_ms, long long delta, long long lag) {
+    open_csv2();
+    fprintf(_csv2, "%s,%lld,%lld,%lld\n", metric, period_ms, delta, lag);
+    fflush(_csv2);
+}
+
+static void add_total_reads(int reads) {
+    total_reads += reads;
+}
+
+static void add_successful_reads(int reads) {
+    successful_reads += reads;
+}
+
+static void add_total_writes(int writes) {
+    total_writes += writes;
+}
+
+static void add_successful_writes(int writes) {
+    successful_writes += writes;
+}
+
+static int cmp_double(const void *a, const void *b) {
+    double da = *(const double*)a;
+    double db = *(const double*)b;
+    return (da < db) ? -1 : (da > db) ? +1 : 0;
+}
+
+#define sqr(x) ((x)*(x))
+#define MAX_VERSIONS 20
+#define PUBLISHING_INTERVAL 10000000
+#define TIMESTEP 0.05
+#define TIME_PERIOD 10
+=}
+preamble {=
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "core/federated/federate.h"
+#include "core/federated/network/net_common.h"
+#include "core/federated/network/net_util.h"
+#include "core/federated/network/socket_common.h"
+#include "core/federated/clock-sync.h"
+#include "core/threaded/reactor_threaded.h"
+#include "core/utils/util.h"
+extern federate_instance_t _fed;
+#ifdef __cplusplus
+}
+#endif
+
+
+=}
+
+reactor plant_sensor {
+  input request_s1: double
+  input request_s2: double
+  input request_s3: double
+  input request_s4: double
+
+  input CF_in: double
+
+  output AP_out: double  // angular position
+  output AV_out: double  // angular velocity
+  output CP_out: double  // cart position
+  output CV_out: double  // cart velocity
+
+  state CF: double = 0.0  // controller force
+
+  state AP: double = 0.001  // initial angle
+  state AV: double = 0.0
+  state CP: double = 0.0
+  state CV: double = 0.0
+
+  // Fixed pendulum/cart parameters (you can make these inputs if you like)
+  // pendulum mass
+  state m: double = 0.5
+  state M: double = 7  // cart mass
+  state l: double = 0.3  // pendulum length
+  state g: double = 9.8  // gravity
+  state LF: double = 0  // linear force coefficient (unused here)
+  state AF: double = 1  // angular force coefficients
+  state TS: double = 0.05  // time step for simulation
+  state PF: double = 0  // pendulum force (unused here)
+  state multiplier: double = 0.05  // multiplier for the controller force
+
+  reaction(
+      CF_in) {=
+    self->CF = CF_in -> value;  // update controller force
+    // log_raw("IvPSimLatency", 50, (lf_time_physical_elapsed() - self->sim_start_time) / 1000000);
+  =}
+
+  // Note: should be replaced with actual plant dynamics
+  reaction(request_s1, request_s2, request_s3, request_s4) ->
+  AP_out, AV_out, CP_out, CV_out {=
+    double p_f = self->PF;       // controller force
+    double c_f = self->CF;       // controller force
+
+    // Alias current state
+    double a_p = self->AP;
+    double a_v = self->AV;
+    double c_p = self->CP;
+    double c_v = self->CV;
+    double M = self->M;
+    double m = self->m;
+    double l = self->l;
+    double g = self->g;
+    double f_lin = self->LF;
+    double f_ang = self->AF;
+    double h = TIMESTEP; // time step
+
+    // Compute the four derivatives for RK4
+    double K1 = a_v;
+
+    double L1 = (
+            p_f * cos(a_p)
+            - (M + m) * g * sin(a_p)
+            + m * l * cos(a_p) * sin(a_p) * sqr(a_v)
+            + f_lin * cos(a_p) * c_v
+            + (M + m) * f_ang / m * a_v
+        ) / (m * l * sqr(cos(a_p)) - (M + m) * l);
+
+    double M1 = c_v;
+
+    double N1 = (
+            p_f
+            + m * l * sin(a_p) * sqr(a_v)
+            - m * g * cos(a_p) * sin(a_p)
+            + cos(a_p) * f_ang * a_v
+        ) / (M + m - m * sqr(cos(a_p)));
+
+    double K2 = a_v + h / 2.0 * L1;
+
+    double L2 = (
+            (p_f + c_f) / 2.0 * cos(a_p + h / 2.0 * K1)
+            - (M + m) * g * sin(a_p + h / 2.0 * K1)
+            + m * l * cos(a_p + h / 2.0 * K1) * sin(a_p + h / 2.0
+             * K1) * sqr(a_v + h / 2.0 * L1)
+            + f_lin * cos(a_p + h / 2.0 * K1) * (c_v + h / 2.0 * N1)
+            + (M + m) * f_ang / m * (a_v + h / 2.0 * L1)
+        ) / (m * l * sqr(cos(a_p + h / 2.0 * K1)) - (M + m) * l);
+
+    double M2 = c_v + h / 2.0 * N1;
+
+    double N2 = (
+            (p_f + c_f) / 2.0
+            + m * l * sin(a_p + h / 2.0 * K1) * sqr(a_v + h / 2.0
+                 * L1)
+             - m * g * cos(a_p + h / 2.0 * K1) * sin(a_p + h / 2.0
+                 * K1)
+             + cos(a_p + h / 2.0 * K1) * f_ang * (a_v + h / 2.0 *
+                 L1)
+        ) / (M + m - m * sqr(cos(a_p + h / 2.0 * K1)));
+
+    double K3 = a_v + h / 2.0 * L2;
+
+    double L3 = (
+            (p_f + c_f) / 2.0 * cos(a_p + h / 2.0 * K2)
+            - (M + m) * g * sin(a_p + h / 2.0 * K2)
+            + m * l * cos(a_p + h / 2.0 * K2) * sin(a_p + h / 2.0
+                 * K2) * sqr(a_v + h / 2.0 * L2)
+            + f_lin * cos(a_p + h / 2.0 * K2) * (c_v + h / 2.0 * N2)
+            + (M + m) * f_ang/m * (a_v + h / 2.0 * L2)
+        ) / (m * l * sqr(cos(a_p + h / 2.0 * K2)) - (M + m) * l);
+
+    double M3 = c_v + h / 2.0 * N2;
+
+    double N3 = (
+            (p_f + c_f) / 2.0
+            + m * l * sin(a_p
+                          + h / 2.0 * K2) * sqr(a_v + h / 2.0 * L2)
+            - m * g * cos(a_p + h / 2.0 * K2) * sin(a_p + h / 2.0
+                 * K2)
+            + cos(a_p + h / 2.0 * K2) * f_ang * (a_v + h / 2.0 *
+                 L2)
+        ) / (M + m - m*sqr(cos(a_p + h / 2.0 * K2)));
+
+    double K4 = a_v + h * L3;
+
+    double L4 = (
+            p_f * cos(a_p + h * K3)
+            - (M + m) * g * sin(a_p + h * K3)
+            + m * l * cos(a_p + h * K3) * sin(a_p + h * K3) * sqr(
+            a_v + h * L3)
+            + f_lin * cos(a_p + h * K3) * (c_v + h * N3)
+            + (M + m) * f_ang/m * (a_v + h * L3)
+        ) / (m * l * sqr(cos(a_p + h * K3)) - (M + m) * l);
+
+    double M4 = c_v + h * N3;
+
+    double N4 = (
+            p_f
+            + m * l * sin(a_p + h * K3) * sqr(a_v + h * L3)
+            - m * g * cos(a_p + h * K3) * sin(a_p + h * K3)
+            + cos(a_p + h * K3) * f_ang * (a_v + h * L3)
+        ) / (M + m - m*sqr(cos(a_p + h * K3)));
+
+    self->AP = a_p + h * (1.0 / 6.0 * K1 + 2.0 / 6.0 * K2 + 2.0 / 6.0 * K3 +
+                           1.0 / 6.0 * K4);
+    self->AV = a_v + h * (1.0 / 6.0 * L1 + 2.0 / 6.0 * L2 + 2.0 / 6.0 * L3 +
+                           1.0 / 6.0 * L4);
+    self->CP = c_p + h * (1.0 / 6.0 * M1 + 2.0 / 6.0 * M2 + 2.0 / 6.0 * M3 +
+                           1.0 / 6.0 * M4);
+    self->CV = c_v + h * (1.0 / 6.0 * N1 + 2.0 / 6.0 * N2 + 2.0 / 6.0 * N3 +
+                           1.0 / 6.0 * N4);
+
+    // Publish updated values
+    lf_set(AP_out, self->AP);
+    // lf_print("Pendulum angle: %f, velocity: %f\n", self->AP, self->AV);
+    lf_set(AV_out, self->AV);
+    lf_set(CP_out, self->CP);
+    lf_set(CV_out, self->CV);
+    // lf_print("Cart position: %f, velocity: %f\n", self->CP, self->CV);
+
+
+    self->PF = c_f; // update pendulum force
+  =}
+}
+reactor plant_actuator {
+  input a1_force: double
+  input a2_force: double
+  input a3_force: double
+  input a4_force: double
+
+  output CF_force: double
+
+  input sim_st_p1: time
+  input sim_st_p2: time
+  input sim_st_p3: time
+  input sim_st_p4: time
+
+  state sim_start_time_p1: time = 0 ns
+  state sim_start_time_p2: time = 0 ns
+  state sim_start_time_p3: time = 0 ns
+  state sim_start_time_p4: time = 0 ns
+
+  reaction(
+      sim_st_p1) {=
+    self->sim_start_time_p1 = sim_st_p1->value;
+    // lf_print("Plant start time: %lld\n", self->sim_start_time);
+  =}
+
+  reaction(
+      sim_st_p2) {=
+    self->sim_start_time_p2 = sim_st_p2->value;
+    // lf_print("Plant start time: %lld\n", self->sim_start_time);
+  =}
+
+  reaction(
+      sim_st_p3) {=
+    self->sim_start_time_p3 = sim_st_p3->value;
+    // lf_print("Plant start time: %lld\n", self->sim_start_time);
+  =}
+
+  reaction(
+      sim_st_p4) {=
+    self->sim_start_time_p4 = sim_st_p4->value;
+    // lf_print("Plant start time: %lld\n", self->sim_start_time);
+  =}
+
+  // Note: should be replaced with actual plant dynamics
+  reaction(a1_force, a2_force, a3_force, a4_force) ->
+  CF_force {=
+    if (a1_force -> is_present && a2_force -> is_present &&
+        a3_force -> is_present && a4_force -> is_present) {
+        // lf_print("Plant received forces: %f, %f, %f, %f\n",
+        //          a1_force->value, a2_force->value,
+        //          a3_force->value, a4_force->value);
+        lf_set(CF_force, (a1_force->value + a2_force->value +
+                          a3_force->value + a4_force->value) / 4.0);
+        log_raw2("IvPSimLatency", 50, (lf_time_physical_elapsed() -
+                 self->sim_start_time_p1) / 1000000, (lf_time_physical_elapsed() - lf_time_logical_elapsed()) / 1000000);
+        log_raw2("IvPSimLatency", 50, (lf_time_physical_elapsed() -
+                 self->sim_start_time_p2) / 1000000, (lf_time_physical_elapsed() - lf_time_logical_elapsed()) / 1000000);
+        log_raw2("IvPSimLatency", 50, (lf_time_physical_elapsed() -
+                 self->sim_start_time_p3) / 1000000, (lf_time_physical_elapsed() - lf_time_logical_elapsed()) / 1000000);
+        log_raw2("IvPSimLatency", 50, (lf_time_physical_elapsed() -
+                    self->sim_start_time_p4) / 1000000, (lf_time_physical_elapsed() - lf_time_logical_elapsed()) / 1000000);
+        // lf_print("IvPSimLatency_ms: %lld\n",
+        //          (lf_time_physical_elapsed() - self->sim_start_time_p1) / 1000000);
+        // lf_print("IvPSimLatency_ms: %lld\n",
+        //          (lf_time_physical_elapsed() - self->sim_start_time_p2) / 1000000);
+        // lf_print("IvPSimLatency_ms: %lld\n",
+        //          (lf_time_physical_elapsed() - self->sim_start_time_p3) / 1000000);
+        // lf_print("IvPSimLatency_ms: %lld\n",
+        //          (lf_time_physical_elapsed() - self->sim_start_time_p4) / 1000000);
+    }
+  =}
+}
+reactor plant {
+  input a1_force: double
+  input a2_force: double
+  input a3_force: double
+  input a4_force: double
+  input request_s1: double
+  input request_s2: double
+  input request_s3: double
+  input request_s4: double
+
+  output s1_AP_out: double
+  output s1_AV_out: double
+  output s1_CP_out: double
+  output s1_CV_out: double
+  output s2_AP_out: double
+  output s2_AV_out: double
+  output s2_CP_out: double
+  output s2_CV_out: double
+  output s3_AP_out: double
+  output s3_AV_out: double
+  output s3_CP_out: double
+  output s3_CV_out: double
+  output s4_AP_out: double
+  output s4_AV_out: double
+  output s4_CP_out: double
+  output s4_CV_out: double
+
+  input sim_st_p1: time
+  input sim_st_p2: time
+  input sim_st_p3: time
+  input sim_st_p4: time
+
+  // output sim_start_time: time;
+  // reaction(sim_st) -> sim_start_time {=
+  // lf_set(sim_start_time, sim_st->value);
+  // =}
+  s = new plant_sensor()
+  a = new plant_actuator()
+
+  sim_st_p1 -> a.sim_st_p1
+  sim_st_p2 -> a.sim_st_p2
+  sim_st_p3 -> a.sim_st_p3
+  sim_st_p4 -> a.sim_st_p4
+
+  request_s1 -> s.request_s1
+  request_s2 -> s.request_s2
+  request_s3 -> s.request_s3
+  request_s4 -> s.request_s4
+
+  s.AP_out -> s1_AP_out
+  s.AV_out -> s1_AV_out
+  s.CP_out -> s1_CP_out
+  s.CV_out -> s1_CV_out
+
+  s.AP_out -> s2_AP_out
+  s.AV_out -> s2_AV_out
+  s.CP_out -> s2_CP_out
+  s.CV_out -> s2_CV_out
+
+  s.AP_out -> s3_AP_out
+  s.AV_out -> s3_AV_out
+  s.CP_out -> s3_CP_out
+  s.CV_out -> s3_CV_out
+
+  s.AP_out -> s4_AP_out
+  s.AV_out -> s4_AV_out
+  s.CP_out -> s4_CP_out
+  s.CV_out -> s4_CV_out
+
+  a1_force -> a.a1_force
+  a2_force -> a.a2_force
+  a3_force -> a.a3_force
+  a4_force -> a.a4_force
+
+  a.CF_force -> s.CF_in after 0 ms
+}
+reactor _planta1_force {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+reactor _planta2_force {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+reactor _planta3_force {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+reactor _planta4_force {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+reactor _plantrequest_s1 {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+reactor _plantrequest_s2 {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+reactor _plantrequest_s3 {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+reactor _plantrequest_s4 {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+reactor _plantsim_st_p1 {
+  input port0: time
+
+  output[1] port: time
+
+  port0 -> port
+}
+reactor _plantsim_st_p2 {
+  input port0: time
+
+  output[1] port: time
+
+  port0 -> port
+}
+reactor _plantsim_st_p3 {
+  input port0: time
+
+  output[1] port: time
+
+  port0 -> port
+}
+reactor _plantsim_st_p4 {
+  input port0: time
+
+  output[1] port: time
+
+  port0 -> port
+}
+@_network_receiver
+reactor NetworkReceiver_4 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_10 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_16 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_22 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_51 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_52 {
+  output msg: time
+
+  logical action networkMessage: time
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_80 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_81 {
+  output msg: time
+
+  logical action networkMessage: time
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_109 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_110 {
+  output msg: time
+
+  logical action networkMessage: time
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_138 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_139 {
+  output msg: time
+
+  logical action networkMessage: time
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_sender
+reactor NetworkSender_0<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s1.AP_in in federate federate__s1
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 0, 0, "federate 0 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              0, 0, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 0, 0);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_1<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s1.AV_in in federate federate__s1
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 1, 0, "federate 0 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              1, 0, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 1, 0);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_2<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s1.CP_in in federate federate__s1
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 2, 0, "federate 0 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              2, 0, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 2, 0);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_3<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s1.CV_in in federate federate__s1
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 3, 0, "federate 0 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              3, 0, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 3, 0);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_4<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s2.AP_in in federate federate__s2
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 0, 1, "federate 1 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              0, 1, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 0, 1);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_5<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s2.AV_in in federate federate__s2
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 1, 1, "federate 1 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              1, 1, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 1, 1);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_6<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s2.CP_in in federate federate__s2
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 2, 1, "federate 1 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              2, 1, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 2, 1);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_7<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s2.CV_in in federate federate__s2
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 3, 1, "federate 1 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              3, 1, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 3, 1);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_8<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s3.AP_in in federate federate__s3
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 0, 2, "federate 2 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              0, 2, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 0, 2);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_9<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s3.AV_in in federate federate__s3
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 1, 2, "federate 2 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              1, 2, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 1, 2);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_10<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s3.CP_in in federate federate__s3
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 2, 2, "federate 2 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              2, 2, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 2, 2);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_11<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s3.CV_in in federate federate__s3
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 3, 2, "federate 2 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              3, 2, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 3, 2);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_12<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s4.AP_in in federate federate__s4
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 0, 3, "federate 3 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              0, 3, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 0, 3);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_13<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s4.AV_in in federate federate__s4
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 1, 3, "federate 3 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              1, 3, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 1, 3);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_14<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s4.CP_in in federate federate__s4
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 2, 3, "federate 3 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              2, 3, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 2, 3);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_15<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__plant to s4.CV_in in federate federate__s4
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 3, 3, "federate 3 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              3, 3, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 3, 3);
+    }
+  =}
+}
+@_fed_config()
+main reactor  {
+
+    plant = new plant() at 10.34.167.169;
+    
+    
+    
+    
+    
+    @_tpoLevel(3)
+    ns_federate__s1 = new NetworkSender_0<{= 0 =}>()
+    @_tpoLevel(5)
+    ns_federate__s1_0 = new NetworkSender_1<{= 1 =}>()
+    @_tpoLevel(7)
+    ns_federate__s1_1 = new NetworkSender_2<{= 2 =}>()
+    @_tpoLevel(9)
+    ns_federate__s1_2 = new NetworkSender_3<{= 3 =}>()
+    @_tpoLevel(3)
+    ns_federate__s2 = new NetworkSender_4<{= 4 =}>()
+    @_tpoLevel(5)
+    ns_federate__s2_0 = new NetworkSender_5<{= 5 =}>()
+    @_tpoLevel(7)
+    ns_federate__s2_1 = new NetworkSender_6<{= 6 =}>()
+    @_tpoLevel(9)
+    ns_federate__s2_2 = new NetworkSender_7<{= 7 =}>()
+    @_tpoLevel(3)
+    ns_federate__s3 = new NetworkSender_8<{= 8 =}>()
+    @_tpoLevel(5)
+    ns_federate__s3_0 = new NetworkSender_9<{= 9 =}>()
+    @_tpoLevel(7)
+    ns_federate__s3_1 = new NetworkSender_10<{= 10 =}>()
+    @_tpoLevel(9)
+    ns_federate__s3_2 = new NetworkSender_11<{= 11 =}>()
+    @_tpoLevel(3)
+    ns_federate__s4 = new NetworkSender_12<{= 12 =}>()
+    @_tpoLevel(5)
+    ns_federate__s4_0 = new NetworkSender_13<{= 13 =}>()
+    @_tpoLevel(7)
+    ns_federate__s4_1 = new NetworkSender_14<{= 14 =}>()
+    @_tpoLevel(9)
+    ns_federate__s4_2 = new NetworkSender_15<{= 15 =}>()
+    @_tpoLevel(2)
+    nr_federate__plant = new NetworkReceiver_4()
+    @_tpoLevel(2)
+    nr_federate__plant_0 = new NetworkReceiver_10()
+    @_tpoLevel(2)
+    nr_federate__plant_1 = new NetworkReceiver_16()
+    @_tpoLevel(2)
+    nr_federate__plant_2 = new NetworkReceiver_22()
+    @_tpoLevel(36)
+    nr_federate__plant_3 = new NetworkReceiver_51()
+    @_tpoLevel(4)
+    nr_federate__plant_4 = new NetworkReceiver_52()
+    @_tpoLevel(36)
+    nr_federate__plant_5 = new NetworkReceiver_80()
+    @_tpoLevel(6)
+    nr_federate__plant_6 = new NetworkReceiver_81()
+    @_tpoLevel(36)
+    nr_federate__plant_7 = new NetworkReceiver_109()
+    @_tpoLevel(8)
+    nr_federate__plant_8 = new NetworkReceiver_110()
+    @_tpoLevel(36)
+    nr_federate__plant_9 = new NetworkReceiver_138()
+    @_tpoLevel(10)
+    nr_federate__plant_10 = new NetworkReceiver_139()
+    _planta1_force0 = new _planta1_force()
+    _planta2_force0 = new _planta2_force()
+    _planta3_force0 = new _planta3_force()
+    _planta4_force0 = new _planta4_force()
+    _plantrequest_s10 = new _plantrequest_s1()
+    _plantrequest_s20 = new _plantrequest_s2()
+    _plantrequest_s30 = new _plantrequest_s3()
+    _plantrequest_s40 = new _plantrequest_s4()
+    _plantsim_st_p10 = new _plantsim_st_p1()
+    _plantsim_st_p20 = new _plantsim_st_p2()
+    _plantsim_st_p30 = new _plantsim_st_p3()
+    _plantsim_st_p40 = new _plantsim_st_p4()
+    _planta1_force0.port -> plant.a1_force
+    _planta2_force0.port -> plant.a2_force
+    _planta3_force0.port -> plant.a3_force
+    _planta4_force0.port -> plant.a4_force
+    _plantrequest_s10.port -> plant.request_s1
+    _plantrequest_s20.port -> plant.request_s2
+    _plantrequest_s30.port -> plant.request_s3
+    _plantrequest_s40.port -> plant.request_s4
+    _plantsim_st_p10.port -> plant.sim_st_p1
+    _plantsim_st_p20.port -> plant.sim_st_p2
+    _plantsim_st_p30.port -> plant.sim_st_p3
+    _plantsim_st_p40.port -> plant.sim_st_p4
+    nr_federate__plant.msg -> _plantrequest_s10.port0
+    nr_federate__plant_0.msg -> _plantrequest_s20.port0
+    nr_federate__plant_1.msg -> _plantrequest_s30.port0
+    nr_federate__plant_2.msg -> _plantrequest_s40.port0
+    nr_federate__plant_3.msg -> _planta1_force0.port0
+    nr_federate__plant_4.msg -> _plantsim_st_p10.port0
+    nr_federate__plant_5.msg -> _planta2_force0.port0
+    nr_federate__plant_6.msg -> _plantsim_st_p20.port0
+    nr_federate__plant_7.msg -> _planta3_force0.port0
+    nr_federate__plant_8.msg -> _plantsim_st_p30.port0
+    nr_federate__plant_9.msg -> _planta4_force0.port0
+    nr_federate__plant_10.msg -> _plantsim_st_p40.port0
+    plant.s1_AP_out -> ns_federate__s1.msg
+    plant.s1_AV_out -> ns_federate__s1_0.msg
+    plant.s1_CP_out -> ns_federate__s1_1.msg
+    plant.s1_CV_out -> ns_federate__s1_2.msg
+    plant.s2_AP_out -> ns_federate__s2.msg
+    plant.s2_AV_out -> ns_federate__s2_0.msg
+    plant.s2_CP_out -> ns_federate__s2_1.msg
+    plant.s2_CV_out -> ns_federate__s2_2.msg
+    plant.s3_AP_out -> ns_federate__s3.msg
+    plant.s3_AV_out -> ns_federate__s3_0.msg
+    plant.s3_CP_out -> ns_federate__s3_1.msg
+    plant.s3_CV_out -> ns_federate__s3_2.msg
+    plant.s4_AP_out -> ns_federate__s4.msg
+    plant.s4_AV_out -> ns_federate__s4_0.msg
+    plant.s4_CP_out -> ns_federate__s4_1.msg
+    plant.s4_CV_out -> ns_federate__s4_2.msg
+}

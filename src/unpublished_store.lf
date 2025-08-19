@@ -1,15 +1,21 @@
 target C
 
-preamble {=
-    struct tuple {
-        char key[32 + 1];
-        char value[64 + 1];
-        uint64_t time;
-    };
-=}
-    
+import inverted_pendulum from "inverted_pendulum.lf";
+
+// preamble {=
+//     typedef struct {
+//         char key[32 + 1];
+//         double value;
+//         uint64_t time;
+//     } tuple;
+// =}
+
+  preamble {=
+    #include "common_types.h"
+  =}
 
 reactor unpublished_store {
+    timer t(0 s, 50 ms);
     input error: double;
     input integral: double;
     input global_target: double;
@@ -18,22 +24,103 @@ reactor unpublished_store {
     output output_integral: tuple;
     output output_target: tuple;
 
+    state stored_error: double = 0.0;
+    state stored_integral: double = 0.0;
+    state stored_target: double = 0.0;
+
 
     reaction(error) -> output_error {=
-        lf_set(output_error.key, "error");
-        lf_set(output_error.value, stored_error);
-        lf_set(output_error.time, lf_get_time());
+        // stored_error = error -> value;
+        tuple t; 
+        strncpy(t.key, "error", sizeof(t.key));
+        t.value = error -> value;
+        t.time = lf_time_logical_elapsed() + PUBLISHING_INTERVAL;
+        lf_set(output_error, t);
+        // lf_print("Stored error: %f\n", output_error->value.value);
     =}
 
     reaction(integral) -> output_integral {=
-        lf_set(output_integral.key, "integral");
-        lf_set(output_integral.value, stored_integral);
-        lf_set(output_integral.time, lf_get_time());
+        // stored_integral = integral -> value;
+        tuple t;
+        strncpy(t.key, "integral", sizeof(t.key));
+        t.value = integral -> value;
+        t.time = lf_time_logical_elapsed() + PUBLISHING_INTERVAL;
+        lf_set(output_integral, t);
+        // lf_print("Stored integral: %f\n", output_integral->value.value);
     =}
 
     reaction(global_target) -> output_target {=
-        lf_set(output_target.key, "target");
-        lf_set(output_target.value, global_target);
-        lf_set(output_target.time, lf_get_time());
+        // stored_target = global_target -> value;
+        tuple t;
+        strncpy(t.key, "target", sizeof(t.key));
+        t.value = global_target->value;
+        t.time = lf_time_logical_elapsed() + PUBLISHING_INTERVAL;
+        lf_set(output_target, t);
+        // lf_print("Stored target: %f\n", output_target->value.value);
+    =}
+
+    // reaction(t) -> output_error, output_integral, output_target {=
+    //     tuple t_error;
+    //     strncpy(t_error.key, "error", sizeof(t_error.key));
+    //     t_error.value = stored_error;
+    //     t_error.time = lf_time_logical_elapsed();
+    //     lf_set(output_error, t_error);
+    //     lf_print("Published stored error: %f\n", output_error->value.value);
+
+    //     tuple t_integral;
+    //     strncpy(t_integral.key, "integral", sizeof(t_integral.key));
+    //     t_integral.value = stored_integral;
+    //     t_integral.time = lf_time_logical_elapsed();
+    //     lf_set(output_integral, t_integral);
+    //     lf_print("Published stored integral: %f\n", output_integral->value.value);
+
+    //     tuple t_target;
+    //     strncpy(t_target.key, "target", sizeof(t_target.key));
+    //     t_target.value = stored_target;
+    //     t_target.time = lf_time_logical_elapsed();
+    //     lf_set(output_target, t_target);
+    //     lf_print("Published stored target: %f\n", output_target->value.value);
+    // =}
+}
+
+reactor faulty_unpublished_store {
+    input error: double;
+    input integral: double;
+    input global_target: double;
+
+    output output_error: tuple;
+    output output_integral: tuple;
+    output output_target: tuple;
+
+    state error: double = 2.0;
+    state integral: double = 2.0;
+    state global_target: double = 2.0;
+
+
+    reaction(error) -> output_error {=
+        tuple t; 
+        strncpy(t.key, "error", sizeof(t.key));
+        t.value = self->error; // Use state variable instead of input
+        t.time = lf_time_logical_elapsed() + PUBLISHING_INTERVAL;
+        lf_set(output_error, t);
+        // lf_print("Unpublished Stored error: %f\n", output_error->value.value);
+    =}
+
+    reaction(integral) -> output_integral {=
+        tuple t;
+        strncpy(t.key, "integral", sizeof(t.key));
+        t.value = self->integral;
+        t.time = lf_time_logical_elapsed() + PUBLISHING_INTERVAL;
+        lf_set(output_integral, t);
+        // lf_print("Unpublished Stored integral: %f\n", output_integral->value.value);
+    =}
+
+    reaction(global_target) -> output_target {=
+        tuple t;
+        strncpy(t.key, "target", sizeof(t.key));
+        t.value = self->global_target;
+        t.time = lf_time_logical_elapsed() + PUBLISHING_INTERVAL;
+        lf_set(output_target, t);
+        // lf_print("Unpublished Stored target: %f\n", output_target->value.value);
     =}
 }

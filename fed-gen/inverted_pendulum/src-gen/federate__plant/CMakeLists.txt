@@ -1,0 +1,142 @@
+
+cmake_minimum_required(VERSION 3.19)
+project(federate__plant LANGUAGES C)
+
+if(CMAKE_BUILD_TYPE STREQUAL "Test")
+  set(CMAKE_BUILD_TYPE "Debug")
+  if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    find_program(LCOV_BIN lcov)
+    if(LCOV_BIN MATCHES "lcov$")
+      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage -fprofile-arcs -ftest-coverage")
+    else()
+      message("Not producing code coverage information since lcov was not found")
+    endif()
+  else()
+    message("Not producing code coverage information since the selected compiler is no gcc")
+  endif()
+endif()
+# Require C11
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+# Require C++17
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(DEFAULT_BUILD_TYPE Debug)
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE ${DEFAULT_BUILD_TYPE} CACHE STRING "Choose the type of build." FORCE)
+endif()
+
+# Do not print install messages
+set(CMAKE_INSTALL_MESSAGE NEVER)
+# Colorize compilation output
+set(CMAKE_COLOR_DIAGNOSTICS ON)
+
+# Do not clear runtime path of the executable when installing it
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+
+# Set default values for build parameters
+set(LF_REACTION_GRAPH_BREADTH 5 CACHE STRING "")
+set(EXECUTABLE_PREAMBLE TRUE CACHE STRING "")
+set(NUMBER_OF_FEDERATES 9 CACHE STRING "")
+set(FEDERATE_ID 8 CACHE STRING "")
+set(FEDERATED TRUE CACHE STRING "")
+set(LF_CLOCK_SYNC 1 CACHE STRING "")
+set(_LF_FEDERATE_NAMES_COMMA_SEPARATED \"federate__s1,federate__s2,federate__s3,federate__s4,federate__p1,federate__p2,federate__p3,federate__p4,federate__plant\" CACHE STRING "")
+set(NUMBER_OF_WATCHDOGS 0 CACHE STRING "")
+set(LF_TRACE TRUE CACHE STRING "")
+set(NUMBER_OF_WORKERS 0 CACHE STRING "")
+set(SCHEDULER SCHED_NP CACHE STRING "")
+set(FEDERATED_CENTRALIZED TRUE CACHE STRING "")
+set(LOG_LEVEL 2 CACHE STRING "")
+set(LF_TRACE_PLUGIN  CACHE STRING "")
+add_subdirectory(core)
+
+set(LF_MAIN_TARGET federate__plant)
+
+# Declare a new executable target and list all its sources
+add_executable(
+    ${LF_MAIN_TARGET}
+    lib/schedule.c
+    _federate__plant_main.c
+    _plant.c
+    _plant_sensor.c
+    _plant_actuator.c
+    __lf_gendelay_24158c18.c
+    _networksender_0_0.c
+    _networksender_1_1.c
+    _networksender_2_2.c
+    _networksender_3_3.c
+    _networksender_4_4.c
+    _networksender_5_5.c
+    _networksender_6_6.c
+    _networksender_7_7.c
+    _networksender_8_8.c
+    _networksender_9_9.c
+    _networksender_10_10.c
+    _networksender_11_11.c
+    _networksender_12_12.c
+    _networksender_13_13.c
+    _networksender_14_14.c
+    _networksender_15_15.c
+    _networkreceiver_4.c
+    _networkreceiver_10.c
+    _networkreceiver_16.c
+    _networkreceiver_22.c
+    _networkreceiver_51.c
+    _networkreceiver_52.c
+    _networkreceiver_80.c
+    _networkreceiver_81.c
+    _networkreceiver_109.c
+    _networkreceiver_110.c
+    _networkreceiver_138.c
+    _networkreceiver_139.c
+    __planta1_force.c
+    __planta2_force.c
+    __planta3_force.c
+    __planta4_force.c
+    __plantrequest_s1.c
+    __plantrequest_s2.c
+    __plantrequest_s3.c
+    __plantrequest_s4.c
+    __plantsim_st_p1.c
+    __plantsim_st_p2.c
+    __plantsim_st_p3.c
+    __plantsim_st_p4.c
+    federate__plant.c
+)
+
+find_library(MATH_LIBRARY m)
+if(MATH_LIBRARY)
+  target_link_libraries(${LF_MAIN_TARGET} PUBLIC ${MATH_LIBRARY})
+endif()
+target_link_libraries(${LF_MAIN_TARGET} PRIVATE reactor-c)
+target_include_directories(${LF_MAIN_TARGET} PUBLIC .)
+target_include_directories(${LF_MAIN_TARGET} PUBLIC include/)
+target_include_directories(${LF_MAIN_TARGET} PUBLIC include/api)
+target_include_directories(${LF_MAIN_TARGET} PUBLIC include/core)
+target_include_directories(${LF_MAIN_TARGET} PUBLIC include/core/platform)
+target_include_directories(${LF_MAIN_TARGET} PUBLIC include/core/modal_models)
+target_include_directories(${LF_MAIN_TARGET} PUBLIC include/core/utils)
+
+# Find threads and link to it
+find_package(Threads REQUIRED)
+target_link_libraries(${LF_MAIN_TARGET} PRIVATE Threads::Threads)
+
+# Set the number of workers to enable threading/tracing
+target_compile_definitions(${LF_MAIN_TARGET} PUBLIC NUMBER_OF_WORKERS=0)
+
+
+    install(
+        TARGETS ${LF_MAIN_TARGET}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+
+include("federate__plant_extension.cmake")
+
+# Define directory in which files from the 'files' target directive will be put.
+target_compile_definitions(${LF_MAIN_TARGET} PUBLIC LF_TARGET_FILES_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}")
+
+

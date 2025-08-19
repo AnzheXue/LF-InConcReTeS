@@ -1,33 +1,74 @@
 target C
 
 reactor reader {
-    // timer t(0 ms, 100 ms);
-    // logical action read;
-    input read_state: double[4];
+    timer t(0, 50 ms);
+
     input input_globalT: double;
     input input_globalI: double;
     input input_globalE: double;
+    input AP_in: double;
+    input AV_in: double;
+    input CP_in: double;
+    input CV_in: double;
 
-    output out_state: double[4];
     output output_globalT: double;
     output output_globalI: double;
     output output_globalE: double;
+    output AP_out: double;
+    output AV_out: double;
+    output CP_out: double;
+    output CV_out: double;
 
-    reaction(read_state) -> out_state {=
-        for (int i = 0; i < 4; i++) {
-            lf_set(read_state[i], state_in[i]);
-        }
-    =}
+    output request_T: time; // publishing time
+    output request_I: time;
+    output request_E: time;
+
+    // state initial_AP: double = 0.1;
+    // state initial_AV: double = 0.0;
+    // state initial_CP: double = 0.0;
+    // state initial_CV: double = 0.0;
 
     reaction(input_globalT) -> output_globalT{=
-        lf_set(output_globalT, input_globalT);
+        lf_set(output_globalT, input_globalT->value);
+        // lf_print("output_globalT = %f\n", output_globalT->value);
     =}
 
     reaction(input_globalI) -> output_globalI {=
-        lf_set(output_globalI, input_globalI);
+        lf_set(output_globalI, input_globalI->value);
+        // lf_print("output_globalI = %f\n", output_globalI->value);
     =}
 
     reaction(input_globalE) -> output_globalE {=
-        lf_set(output_globalE, input_globalE);
+        lf_set(output_globalE, input_globalE->value);
+        // lf_print("output_globalE = %f\n", output_globalE->value);
+    =}
+
+    reaction(AP_in) -> AP_out {=
+        lf_set(AP_out, AP_in -> value);
+        // lf_print("AP_out = %f\n", AP_out->value);
+    =}
+
+    reaction(AV_in) -> AV_out {=
+        lf_set(AV_out, AV_in -> value);
+        // lf_print("AV_out = %f\n", AV_out->value);
+    =}
+
+    reaction(CP_in) -> CP_out {=
+        lf_set(CP_out, CP_in -> value);
+        // lf_print("CP_out = %f\n", CP_out->value);
+    =}
+
+    reaction(CV_in) -> CV_out {=
+        lf_set(CV_out, CV_in -> value);
+        // lf_print("CV_out = %f\n", CV_out->value);
+    =}
+
+    reaction(t) -> request_T, request_I, request_E {=
+        lf_set(request_T, lf_time_logical_elapsed() + 9900000);
+        lf_set(request_I, lf_time_logical_elapsed() + 9900000);
+        lf_set(request_E, lf_time_logical_elapsed() + 9900000);
+        // lf_print("request_T = %ld\n", request_T->value);
+        // lf_print("request_I = %ld\n", request_I->value);
+        // lf_print("request_E = %ld\n", request_E->value);
     =}
 }

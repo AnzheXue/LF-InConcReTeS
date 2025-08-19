@@ -1,7 +1,13 @@
 target C
 
 reactor compute {
-    input current_state: double[4];
+    timer t(0 ms, 50 ms);
+
+    input AP_in: double;
+    input AV_in: double;
+    input CP_in: double;
+    input CV_in: double;
+
     input globalT: double;
     input globalI: double;
     input globalE: double;
@@ -11,40 +17,52 @@ reactor compute {
     output global_target: double;
     output force: double;
 
-    state g_target: double;
-    state global_integral: double;
-    state global_error: double;
-    state last_activation_time: time;
-    state derivative: double;
+    state g_target: double = 0.0; 
+    state global_integral: double = 0.0;
+    state global_error: double = 0.0; 
+    
+    state Kp: double = 125.0; 
+    state Ki: double = 25.0;
+    state Kd: double = 1.0;
 
-    reaction(globalT) {=
-        global_target = globalT;
+    state AP: double;
+    state globalI: double;
+    state globalE: double;
+    state globalT: double;
+
+    reaction(AP_in) {=
+        self->AP = AP_in->value;
     =}
+
     reaction(globalI) {=
-        global_integral = globalI;
+        self->global_integral = globalI->value;
     =}
     reaction(globalE) {=
-        global_error = globalE;
+        self->global_error = globalE->value;
     =}
     reaction(globalT) {=
-        g_target = globalT;
+        self->g_target = globalT->value;
     =}
 
-    reaction(current_state) -> error, integral, global_target, force {=
-        double Kp = current_state[0];
-        double Ki = current_state[1];
-        double Kd = current_state[2];
-        double measurement = current_state[3];
+    reaction(t) -> error, integral, global_target, force {=
+        double dt = lf_time_logical_elapsed() / 1000000000.0 * 0.05; 
+        double target = self->g_target;
+        double current = self->AP;
+        lf_print("Current: %f\n", current);
 
-        double err = g_target - measurement;
-        double integ = g_integral + err;
-        double deriv = err - global_error;
+        double err = current - target;
+        double integ = self->global_integral + err * dt;
+        double deriv = (err - self->global_error) * dt;
 
-        double u = Kp * err + Ki * integ + Kd * deriv;
+        double u = self->Kp * err + self->Ki * integ + self->Kd * deriv;
 
         lf_set(error, err);
+        // lf_print("Error: %f\n", err);
         lf_set(integral, integ);
+        // lf_print("Integral: %f\n", integ);
         lf_set(force, u);
-        lf_set(global_target, g_target);
+        // lf_print("Force: %f\n", u);
+        lf_set(global_target, self->g_target);
+        // lf_print("Global Target: %f\n", self->g_target);
     =}
 }

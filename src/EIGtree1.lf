@@ -1,12 +1,18 @@
 target C
 
-preamble {=
-    struct tuple {
-        char key[32 + 1];
-        char value[64 + 1];
-        uint64_t time;
-    };
-=}
+import inverted_pendulum from "inverted_pendulum.lf";
+
+// preamble {=
+    // typedef struct {
+    //     char key[32 + 1];
+    //     double value;
+    //     uint64_t time;
+    // } tuple;
+// =}
+
+  preamble {=
+    #include "common_types.h"
+  =}
 
 reactor EIGtree1 {
     input p1_in: tuple;
@@ -18,13 +24,16 @@ reactor EIGtree1 {
     output p0p3_out: tuple;
 
     reaction(p1_in) -> p0p1_out {=
-        lf_set(p0p1_out, p1_in);
+        lf_set(p0p1_out, p1_in->value);
+        // lf_print("EIGtree1 received p1: %f\n", p1_in->value.value);
     =}
 
     reaction(p2_in) -> p0p2_out {=
-        lf_set(p0p2_out, p2_in);
+        lf_set(p0p2_out, p2_in->value);
+        // lf_print("EIGtree1 received p2: %f\n", p2_in->value.value);
     =}
     reaction(p3_in) -> p0p3_out {=
-        lf_set(p0p3_out, p3_in);
+        lf_set(p0p3_out, p3_in->value);
+        // lf_print("EIGtree1 received p3: %f\n", p3_in->value.value);
     =}
 }

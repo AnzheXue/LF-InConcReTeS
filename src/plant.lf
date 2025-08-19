@@ -1,0 +1,254 @@
+target C
+
+import inverted_pendulum from "inverted_pendulum.lf";
+
+// preamble {=
+//     #include <string.h>
+//     #include <math.h>
+
+//     #define sqr(x) ((x)*(x))
+// =}
+
+  preamble {=
+    #include "common_types.h"
+  =}
+
+reactor plant_sensor {
+    input request_s1: double;
+    input request_s2: double;
+    input request_s3: double;
+    input request_s4: double;
+
+    input CF_in: double;
+
+    output AP_out: double;  // angular position
+    output AV_out: double;  // angular velocity
+    output CP_out: double;  // cart position
+    output CV_out: double;  // cart velocity
+
+    state CF: double = 0.0; // controller force
+
+    state AP: double = 0.1;     // initial angle
+    state AV: double = 0.0;
+    state CP: double = 0.0;
+    state CV: double = 0.0;
+
+    // Fixed pendulum/cart parameters (you can make these inputs if you like)
+    state m: double = 1.0;     // pendulum mass
+    state M: double = 10.0;    // cart mass
+    state l: double = 1.0;     // pendulum length
+    state g: double = 9.8;     // gravity
+    state LF: double = 0.0;     // linear force coefficient (unused here)
+    state AF: double = 1.0;     // angular force coefficients
+    state TS: double = 0.05;   // time step for simulation
+    state PF: double = 0.0;     // pendulum force (unused here)
+    state multiplier: double = 0.05; // multiplier for the controller force
+
+    reaction (CF_in) {=
+        self->CF = CF_in -> value;  // update controller force
+    =}
+
+    reaction (request_s1, request_s2, request_s3, request_s4, CF_in) -> AP_out, AV_out, CP_out, CV_out {=
+        double p_f = self->PF;       // controller force
+        double c_f = self->CF;       // controller force
+
+        // Alias current state
+        double a_p = self->AP;
+        double a_v = self->AV;
+        double c_p = self->CP;
+        double c_v = self->CV;
+        double M = self->M;
+        double m = self->m;
+        double l = self->l;
+        double g = self->g;
+        double f_lin = self->LF;
+        double f_ang = self->AF;
+        double h = self->TS; // time step
+
+        // Compute the four derivatives for RK4
+        double K1 = a_v;
+
+        double L1 = (
+                p_f * cos(a_p)
+                - (M + m) * g * sin(a_p)
+                + m * l * cos(a_p) * sin(a_p) * sqr(a_v)
+                + f_lin * cos(a_p) * c_v
+                + (M + m) * f_ang / m * a_v
+            ) / (m * l * sqr(cos(a_p)) - (M + m) * l);
+
+        double M1 = c_v;
+
+        double N1 = (
+                p_f
+                + m * l * sin(a_p) * sqr(a_v)
+                - m * g * cos(a_p) * sin(a_p)
+                + cos(a_p) * f_ang * a_v
+            ) / (M + m - m * sqr(cos(a_p)));
+
+        double K2 = a_v + h / 2.0 * L1;
+
+        double L2 = (
+                (p_f + c_f) / 2.0 * cos(a_p + h / 2.0 * K1)
+                - (M + m) * g * sin(a_p + h / 2.0 * K1)
+                + m * l * cos(a_p + h / 2.0 * K1) * sin(a_p + h / 2.0
+                 * K1) * sqr(a_v + h / 2.0 * L1)
+                + f_lin * cos(a_p + h / 2.0 * K1) * (c_v + h / 2.0 * N1)
+                + (M + m) * f_ang / m * (a_v + h / 2.0 * L1)
+            ) / (m * l * sqr(cos(a_p + h / 2.0 * K1)) - (M + m) * l);
+
+        double M2 = c_v + h / 2.0 * N1;
+
+        double N2 = (
+                (p_f + c_f) / 2.0
+                + m * l * sin(a_p + h / 2.0 * K1) * sqr(a_v + h / 2.0
+                     * L1)
+                 - m * g * cos(a_p + h / 2.0 * K1) * sin(a_p + h / 2.0
+                     * K1)
+                 + cos(a_p + h / 2.0 * K1) * f_ang * (a_v + h / 2.0 *
+                     L1)
+            ) / (M + m - m * sqr(cos(a_p + h / 2.0 * K1)));
+
+        double K3 = a_v + h / 2.0 * L2;
+
+        double L3 = (
+                (p_f + c_f) / 2.0 * cos(a_p + h / 2.0 * K2)
+                - (M + m) * g * sin(a_p + h / 2.0 * K2)
+                + m * l * cos(a_p + h / 2.0 * K2) * sin(a_p + h / 2.0
+                     * K2) * sqr(a_v + h / 2.0 * L2)
+                + f_lin * cos(a_p + h / 2.0 * K2) * (c_v + h / 2.0 * N2)
+                + (M + m) * f_ang/m * (a_v + h / 2.0 * L2)
+            ) / (m * l * sqr(cos(a_p + h / 2.0 * K2)) - (M + m) * l);
+
+        double M3 = c_v + h / 2.0 * N2;
+
+        double N3 = (
+                (p_f + c_f) / 2.0
+                + m * l * sin(a_p
+                              + h / 2.0 * K2) * sqr(a_v + h / 2.0 * L2)
+                - m * g * cos(a_p + h / 2.0 * K2) * sin(a_p + h / 2.0
+                     * K2)
+                + cos(a_p + h / 2.0 * K2) * f_ang * (a_v + h / 2.0 *
+                     L2)
+            ) / (M + m - m*sqr(cos(a_p + h / 2.0 * K2)));
+
+        double K4 = a_v + h * L3;
+
+        double L4 = (
+                p_f * cos(a_p + h * K3)
+                - (M + m) * g * sin(a_p + h * K3)
+                + m * l * cos(a_p + h * K3) * sin(a_p + h * K3) * sqr(
+                a_v + h * L3)
+                + f_lin * cos(a_p + h * K3) * (c_v + h * N3)
+                + (M + m) * f_ang/m * (a_v + h * L3)
+            ) / (m * l * sqr(cos(a_p + h * K3)) - (M + m) * l);
+
+        double M4 = c_v + h * N3;
+
+        double N4 = (
+                p_f
+                + m * l * sin(a_p + h * K3) * sqr(a_v + h * L3)
+                - m * g * cos(a_p + h * K3) * sin(a_p + h * K3)
+                + cos(a_p + h * K3) * f_ang * (a_v + h * L3)
+            ) / (M + m - m*sqr(cos(a_p + h * K3)));
+
+        self->AP = a_p + h * (1.0 / 6.0 * K1 + 2.0 / 6.0 * K2 + 2.0 / 6.0 * K3 +
+                               1.0 / 6.0 * K4);
+        self->AV = a_v + h * (1.0 / 6.0 * L1 + 2.0 / 6.0 * L2 + 2.0 / 6.0 * L3 +
+                               1.0 / 6.0 * L4);
+        self->CP = c_p + h * (1.0 / 6.0 * M1 + 2.0 / 6.0 * M2 + 2.0 / 6.0 * M3 +
+                               1.0 / 6.0 * M4);
+        self->CV = c_v + h * (1.0 / 6.0 * N1 + 2.0 / 6.0 * N2 + 2.0 / 6.0 * N3 +
+                               1.0 / 6.0 * N4);
+
+        // Publish updated values
+        lf_set(AP_out, self->AP);
+        lf_set(AV_out, self->AV);
+        lf_set(CP_out, self->CP);
+        lf_set(CV_out, self->CV);
+
+        self->PF = c_f; // update pendulum force
+    =}// Note: should be replaced with actual plant dynamics
+}
+
+reactor plant_actuator {
+    input a1_force: double;
+    input a2_force: double;
+    input a3_force: double;
+    input a4_force: double;
+
+    output CF_force: double;
+
+    reaction(a1_force, a2_force, a3_force, a4_force) -> CF_force {=
+        if (a1_force -> is_present && a2_force -> is_present &&
+            a3_force -> is_present && a4_force -> is_present) {
+            lf_print("Plant received forces: %f, %f, %f, %f\n",
+                     a1_force->value, a2_force->value,
+                     a3_force->value, a4_force->value);
+            lf_set(CF_force, (a1_force->value + a2_force->value +
+                             a3_force->value + a4_force->value) / 4.0);
+        }
+    =} // Note: should be replaced with actual plant dynamics
+}
+
+reactor plant {
+    input a1_force: double;
+    input a2_force: double;
+    input a3_force: double;
+    input a4_force: double;
+    input request_s1: double;
+    input request_s2: double;
+    input request_s3: double;
+    input request_s4: double;
+
+    output s1_AP_out: double;
+    output s1_AV_out: double;
+    output s1_CP_out: double;
+    output s1_CV_out: double;
+    output s2_AP_out: double;
+    output s2_AV_out: double;
+    output s2_CP_out: double;
+    output s2_CV_out: double;
+    output s3_AP_out: double;
+    output s3_AV_out: double;
+    output s3_CP_out: double;
+    output s3_CV_out: double;
+    output s4_AP_out: double;
+    output s4_AV_out: double;
+    output s4_CP_out: double;
+    output s4_CV_out: double;
+
+    s = new plant_sensor();
+    a = new plant_actuator();
+
+    request_s1 -> s.request_s1;
+    request_s2 -> s.request_s2;
+    request_s3 -> s.request_s3;
+    request_s4 -> s.request_s4;
+
+    s.AP_out -> s1_AP_out;
+    s.AV_out -> s1_AV_out;
+    s.CP_out -> s1_CP_out;
+    s.CV_out -> s1_CV_out;
+
+    s.AP_out -> s2_AP_out;
+    s.AV_out -> s2_AV_out;
+    s.CP_out -> s2_CP_out;
+    s.CV_out -> s2_CV_out;
+
+    s.AP_out -> s3_AP_out;
+    s.AV_out -> s3_AV_out;
+    s.CP_out -> s3_CP_out;
+    s.CV_out -> s3_CV_out;
+
+    s.AP_out -> s4_AP_out;
+    s.AV_out -> s4_AV_out;
+    s.CP_out -> s4_CP_out;
+    s.CV_out -> s4_CV_out;
+
+    a1_force -> a.a1_force;
+    a2_force -> a.a2_force;
+    a3_force -> a.a3_force;
+    a4_force -> a.a4_force;
+
+    a.CF_force -> s.CF_in after 0 ms;
+}

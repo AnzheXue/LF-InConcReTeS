@@ -3,9 +3,13 @@ target C
 import reader from "reader.lf";
 import compute from "compute.lf";
 import writer from "writer.lf";
+import actuator from "actuator.lf";
 
 reactor App {
-    input read_state: double[4];
+    input AP_in: double;
+    input AV_in: double;
+    input CP_in: double;
+    input CV_in: double;
     input input_globalI: double;
     input input_globalT: double;
     input input_globalE: double;
@@ -15,27 +19,43 @@ reactor App {
     output output_integral: double;
     output output_error: double;
 
+    output request_T: time;
+    output request_I: time;
+    output request_E: time;
+
     r = new reader();
     c = new compute();
     w = new writer();
+    a = new actuator();
 
-    read_state -> r.read_state;
     input_globalI -> r.input_globalI;
     input_globalT -> r.input_globalT;
     input_globalE -> r.input_globalE;
 
-    r.out_state -> c.current_state;
+    AP_in -> r.AP_in;
+    AV_in -> r.AV_in;
+    CP_in -> r.CP_in;
+    CV_in -> r.CV_in;
+
     r.output_globalI -> c.globalI;
     r.output_globalT -> c.globalT;
-    r.output_globalE -> c.globalE;
-
+    r.output_globalE -> c.globalE; 
+    r.request_T -> request_T after 0 ms;
+    r.request_I -> request_I after 0 ms;
+    r.request_E -> request_E after 0 ms;
+    r.AP_out -> c.AP_in;
+    r.AV_out -> c.AV_in;
+    r.CP_out -> c.CP_in;
+    r.CV_out -> c.CV_in;
     c.force -> w.force;
     c.integral -> w.integral;
     c.error -> w.error;
     c.global_target -> w.global_target;
 
+    w.output_force -> a.input_force;
     w.output_target -> output_target;
-    w.output_force -> output_force;
     w.output_integral -> output_integral;
     w.output_error -> output_error;
+
+    a.output_force -> output_force;
 }

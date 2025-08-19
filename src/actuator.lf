@@ -1,14 +1,12 @@
 target C
 
 reactor actuator {
-    input p1_force: double;
-    input p2_force: double;
-    input p3_force: double;
-    input p4_force: double;
+    input input_force: double;
 
-    state force: double;
+    output output_force: double;
 
-    reaction(p1_force, p2_force, p3_force, p4_force) {=
-        force = p1_force.value;
+    reaction(input_force) -> output_force{=
+        lf_set(output_force, input_force->value);
+        // lf_print("output_force: %f\n", output_force->value);
     =}
 }

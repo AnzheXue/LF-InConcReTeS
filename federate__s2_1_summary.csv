@@ -1,0 +1,61 @@
+Start time:, 1754072193349933818
+End time:, 1754072198351025323
+Total time:, 5001091505
+
+Total Event Occurrences
+Reaction starts, 3424
+Reaction ends, 3424
+Schedule called, 101
+Worker wait starts, 3424
+Worker wait ends, 3424
+Scheduler advancing time starts, 401
+Scheduler advancing time ends, 401
+Sending TIMESTAMP, 1
+Sending NET, 703
+Sending LTC, 101
+Sending FED_ID, 1
+Sending RESIGN, 1
+Sending PORT_ABS, 1500
+Sending TAGGED_MSG, 505
+Receiving ACK, 1
+Receiving TIMESTAMP, 1
+Receiving PTAG, 401
+Receiving TAG, 1
+Receiving PORT_ABS, 1200
+Receiving TAGGED_MSG, 404
+
+Reaction Executions
+Reactor, Reaction, Occurrences, Total Time, Pct Total Time, Avg Time, Max Time, Min Time
+s2, 0, 101, 39660, 0.000793, 392, 4465, 104
+s2, 1, 101, 30697, 0.000614, 303, 941, 137
+s2, 2, 101, 26743, 0.000535, 264, 6491, 61
+s2, 3, 101, 22956, 0.000459, 227, 1189, 56
+s2, 4, 101, 12326, 0.000246, 122, 902, 49
+ns_federate__p2, 0, 1, 243, 0.000005, 243, 243, 243
+ns_federate__p2, 1, 101, 3670057, 0.073385, 36337, 285436, 5274
+ns_federate__p2, 2, 401, 1754072193925555892, 35073787235.683777, 4374244872632308, 1754072193917973189, 52
+ns_federate__p2_0, 0, 1, 142, 0.000003, 142, 142, 142
+ns_federate__p2_0, 1, 101, 563741, 0.011272, 5581, 24854, 2444
+ns_federate__p2_0, 2, 401, 3806697, 0.076117, 9493, 2454720, 43
+ns_federate__p2_1, 0, 1, 106, 0.000002, 106, 106, 106
+ns_federate__p2_1, 1, 101, 518617, 0.010370, 5134, 45374, 2234
+ns_federate__p2_1, 2, 401, 909953, 0.018195, 2269, 16743, 41
+ns_federate__p2_2, 0, 1, 94, 0.000002, 94, 94, 94
+ns_federate__p2_2, 1, 101, 468327, 0.009364, 4636, 44452, 2118
+ns_federate__p2_2, 2, 401, 1754072195531074104, 35073787267.787140, 4374244876636095, 1754072195530114767, 44
+ns_federate__plant_0, 0, 1, 333, 0.000007, 333, 333, 333
+ns_federate__plant_0, 1, 101, 4708648, 0.094152, 46620, 324951, 14260
+ns_federate__plant_0, 2, 401, 4346870, 0.086918, 10840, 153302, 48
+nr_federate__s2, 0, 101, 214835, 0.004296, 2127, 53068, 370
+nr_federate__s2_0, 0, 101, 105087, 0.002101, 1040, 3919, 412
+nr_federate__s2_1, 0, 101, 88471, 0.001769, 875, 3516, 221
+nr_federate__s2_2, 0, 101, 3062889, 0.061244, 30325, 2961420, 255
+
+Schedule calls
+Trigger, Occurrences
+s2.t, 101
+
+Workers Waiting
+Worker, Waiting On, Occurrences, Total Time, Pct Total Time, Avg Time, Max Time, Min Time
+0, reaction queue, 1426, 4984117816, 99.660600, 3495173, 501836574, 51
+1, reaction queue, 1998, 4976403688, 99.506351, 2490692, 299478333, 49

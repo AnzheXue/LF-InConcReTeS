@@ -1,12 +1,18 @@
 target C
 
-preamble {=
-    struct tuple {
-        char key[32 + 1];
-        char value[64 + 1];
-        uint64_t time;
-    };
-=}
+import inverted_pendulum from "inverted_pendulum.lf";
+
+// preamble {=
+//     typedef struct {
+//         char key[32 + 1];
+//         double value;
+//         uint64_t time;
+//     } tuple;
+// =}
+
+  preamble {=
+    #include "common_types.h"
+  =}
 
 reactor EIGtree2 {
     input p1p2_in: tuple;
@@ -24,26 +30,32 @@ reactor EIGtree2 {
     output p0p3p2_out: tuple;
 
     reaction(p1p2_in) -> p0p1p2_out {=
-        lf_set(p0p1p2_out, p1p2_in);
+        lf_set(p0p1p2_out, p1p2_in->value);
+        // lf_print("EIGtree2 received p1p2: %f\n", p1p2_in->value.value);
     =}
 
     reaction(p1p3_in) -> p0p1p3_out {=
-        lf_set(p0p1p3_out, p1p3_in);
+        lf_set(p0p1p3_out, p1p3_in->value);
+        // lf_print("EIGtree2 received p1p3: %f\n", p1p3_in->value.value);
     =}
     
     reaction(p2p1_in) -> p0p2p1_out {=
-        lf_set(p0p2p1_out, p2p1_in);
+        lf_set(p0p2p1_out, p2p1_in->value);
+        // lf_print("EIGtree2 received p2p1: %f\n", p2p1_in->value.value);
     =}
 
     reaction(p2p3_in) -> p0p2p3_out {=
-        lf_set(p0p2p3_out, p2p3_in);
+        lf_set(p0p2p3_out, p2p3_in->value);
+        // lf_print("EIGtree2 received p2p3: %f\n", p2p3_in->value.value);
     =}
 
     reaction(p3p1_in) -> p0p3p1_out {=
-        lf_set(p0p3p1_out, p3p1_in);
+        lf_set(p0p3p1_out, p3p1_in->value);
+        // lf_print("EIGtree2 received p3p1: %f\n", p3p1_in->value.value);
     =}
 
     reaction(p3p2_in) -> p0p3p2_out {=
-        lf_set(p0p3p2_out, p3p2_in);
+        lf_set(p0p3p2_out, p3p2_in->value);
+        // lf_print("EIGtree2 received p3p2: %f\n", p3p2_in->value.value);
     =}
 }

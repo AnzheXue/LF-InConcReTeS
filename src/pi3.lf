@@ -4,9 +4,26 @@ import App from "app.lf";
 import published_store from "published_store.lf";
 import unpublished_store from "unpublished_store.lf";
 import EIGtree from "EIGtree.lf";
+import inverted_pendulum from "inverted_pendulum.lf";
+
+// preamble {=
+//     typedef struct {
+//         char key[32 + 1];
+//         char value[64 + 1];
+//         uint64_t time;
+//     } tuple;
+//     extern tuple;
+// =}
+
+  preamble {=
+    #include "common_types.h"
+  =}
 
 reactor pi3 {
-    input sensor_data: double[4];
+    input AP_in: double;
+    input AV_in: double;
+    input CP_in: double;
+    input CV_in: double;
 
     input e1_p1_in: tuple;
     input e1_p2_in: tuple;
@@ -80,7 +97,10 @@ reactor pi3 {
     e2 = new EIGtree();
     e3 = new EIGtree();
 
-    sensor_data -> a.read_state;
+    AP_in -> a.AP_in;
+    AV_in -> a.AV_in;
+    CP_in -> a.CP_in;
+    CV_in -> a.CV_in;
     a.output_force -> force;
 
     a.output_error -> us.error;
@@ -112,7 +132,7 @@ reactor pi3 {
     // e1.p0p3p1_out -> e1_p0p3p1_out;
     // e1.p0p3p2_out -> e1_p0p3p2_out;
 
-    e1.final_out -> ps.input_globalE;
+    e1.final_out -> ps.input_globalE after 0 ms;
 
     e2_p1_in -> e2.p1_in;
     e2_p2_in -> e2.p2_in;
@@ -135,7 +155,7 @@ reactor pi3 {
     // e2.p0p3p1_out -> e2_p0p3p1_out;
     // e2.p0p3p2_out -> e2_p0p3p2_out;
 
-    e2.final_out -> ps.input_globalI;
+    e2.final_out -> ps.input_globalI after 0 ms;
 
     e3_p1_in -> e3.p1_in;
     e3_p2_in -> e3.p2_in;
@@ -158,9 +178,13 @@ reactor pi3 {
     // e3.p0p3p1_out -> e3_p0p3p1_out;
     // e3.p0p3p2_out -> e3_p0p3p2_out;
 
-    e3.final_out -> ps.input_globalT;
+    e3.final_out -> ps.input_globalT after 0 ms;
 
-    ps.output_globalI -> a.input_globalI after 0 ms;
-    ps.output_globalT -> a.input_globalT after 0 ms;
-    ps.output_globalE -> a.input_globalE after 0 ms;
+    a.request_T -> ps.request_T;
+    a.request_I -> ps.request_I;
+    a.request_E -> ps.request_E;
+
+    ps.output_globalI -> a.input_globalI;
+    ps.output_globalT -> a.input_globalT;
+    ps.output_globalE -> a.input_globalE;
 }

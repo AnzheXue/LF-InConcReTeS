@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../../trace/impl/lib/lf-trace-impl.a CMakeFiles/lf-trace-impl.dir/__/__/__/trace/impl/src/trace_impl.c.o
+/usr/bin/ranlib ../../trace/impl/lib/lf-trace-impl.a

@@ -1,0 +1,510 @@
+target C {
+  cmake-include: "include/federate__s3_extension.cmake",
+  compile-definitions: {
+    EXECUTABLE_PREAMBLE: "",
+    _LF_CLOCK_SYNC_PERIOD_NS: "5000000",
+    NUMBER_OF_FEDERATES: "9",
+    FEDERATE_ID: "2",
+    _LF_CLOCK_SYNC_ATTENUATION: "10",
+    _LF_CLOCK_SYNC_COLLECT_STATS: "",
+    FEDERATED: "",
+    FEDERATED_CENTRALIZED: "",
+    LF_CLOCK_SYNC: "2",
+    _LF_CLOCK_SYNC_INITIAL: "",
+    _LF_FEDERATE_NAMES_COMMA_SEPARATED: "\"federate__s1,federate__s2,federate__s3,federate__s4,federate__p1,federate__p2,federate__p3,federate__p4,federate__plant\"",
+    _LF_CLOCK_SYNC_EXCHANGES_PER_INTERVAL: "10"
+  },
+  _fed_setup: "include/_federate__s3_preamble.h",
+  keepalive: true,
+  single-threaded: false,
+  timeout: 100 s,
+  tracing: true
+}
+
+
+NONE preamble {=
+typedef struct {
+    char key[32 + 1];
+    double value;
+    uint64_t time;
+} tuple;
+
+typedef struct {
+    double value;
+    int count;
+    int first_index;
+} tally;
+
+typedef struct {
+    double value;
+    uint64_t time;
+} version;
+
+#include <string.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+static int successful_reads = 0;
+static int total_reads = 0;
+
+static int successful_writes = 0;
+static int total_writes = 0;
+
+static FILE* _csv = NULL;
+
+static void open_csv() {
+    if (!_csv) {
+        _csv = fopen("raw_timing_KVS.csv", "w");
+        fprintf(_csv, "metric,period_ms,ms,successful_reads,total_reads,successful_writes,total_writes\n");
+        fflush(_csv);
+    }
+}
+
+static void log_raw(const char* metric, long long period_ms, long long delta, int sr, int tr, int sw, int tw) {
+    open_csv();
+    fprintf(_csv, "%s,%lld,%lld,%d,%d,%d,%d\n", metric, period_ms, delta,
+            sr, tr, sw, tw);
+    fflush(_csv);
+}
+
+// static void log_raw(const char* metric, long long period_ms, long long delta) {
+//     open_csv();
+//     fprintf(_csv, "%s,%lld,%lld,%d,%d,%d,%d\n", metric, period_ms, delta,
+//             successful_reads, total_reads, successful_writes, total_writes);
+//     fflush(_csv);
+// }
+
+static FILE* _csv2 = NULL;
+static void open_csv2() {
+    if (!_csv2) {
+        _csv2 = fopen("raw_timing_IvPSim.csv", "w");
+        fprintf(_csv2, "metric,period_ms,ms,lag_ms\n");
+        fflush(_csv2);
+    }
+}
+
+static void log_raw2(const char* metric, long long period_ms, long long delta, long long lag) {
+    open_csv2();
+    fprintf(_csv2, "%s,%lld,%lld,%lld\n", metric, period_ms, delta, lag);
+    fflush(_csv2);
+}
+
+static void add_total_reads(int reads) {
+    total_reads += reads;
+}
+
+static void add_successful_reads(int reads) {
+    successful_reads += reads;
+}
+
+static void add_total_writes(int writes) {
+    total_writes += writes;
+}
+
+static void add_successful_writes(int writes) {
+    successful_writes += writes;
+}
+
+static int cmp_double(const void *a, const void *b) {
+    double da = *(const double*)a;
+    double db = *(const double*)b;
+    return (da < db) ? -1 : (da > db) ? +1 : 0;
+}
+
+#define sqr(x) ((x)*(x))
+#define MAX_VERSIONS 20
+#define PUBLISHING_INTERVAL 10000000
+#define TIMESTEP 0.05
+#define TIME_PERIOD 10
+=}
+preamble {=
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "core/federated/federate.h"
+#include "core/federated/network/net_common.h"
+#include "core/federated/network/net_util.h"
+#include "core/federated/network/socket_common.h"
+#include "core/federated/clock-sync.h"
+#include "core/threaded/reactor_threaded.h"
+#include "core/utils/util.h"
+extern federate_instance_t _fed;
+#ifdef __cplusplus
+}
+#endif
+
+
+=}
+
+// preamble {=
+//   #include "common_types.h"
+// =}
+reactor Sensor {
+  timer t(0, 10 ms)
+
+  input AP_in: double
+  input AV_in: double
+  input CP_in: double
+  input CV_in: double
+
+  output AP_out: double
+  output AV_out: double
+  output CP_out: double
+  output CV_out: double
+  output request: double
+
+  output sim_start_time: time
+
+  reaction(t) ->
+  request, sim_start_time {=
+    lf_set(request, 0.0);
+    lf_set(sim_start_time, lf_time_physical_elapsed());
+    // lf_print("request = %f\n", request->value);
+    // lf_print("out[1] = %f\n", out[1]->value);
+    // lf_print("out[2] = %f\n", out[2]->value);
+    // lf_print("out[3] = %f\n", out[3]->value);
+  =}
+
+  reaction(AP_in) ->
+  AP_out {=
+    lf_set(AP_out, AP_in->value);
+    // lf_print("AP_out = %f\n", AP_out->value);
+  =}
+
+  reaction(AV_in) ->
+  AV_out {=
+    lf_set(AV_out, AV_in->value);
+    // lf_print("AV_out = %f\n", AV_out->value);
+  =}
+
+  reaction(CP_in) ->
+  CP_out {=
+    lf_set(CP_out, CP_in->value);
+    // lf_print("CP_out = %f\n", CP_out->value);
+  =}
+
+  reaction(CV_in) ->
+  CV_out {=
+    lf_set(CV_out, CV_in->value);
+    // lf_print("CV_out = %f\n", CV_out->value);
+  =}
+}
+reactor _s3AP_in {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+reactor _s3AV_in {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+reactor _s3CP_in {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+reactor _s3CV_in {
+  input port0: double
+
+  output[1] port: double
+
+  port0 -> port
+}
+@_network_sender
+reactor NetworkSender_0<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__s3 to p3.AP_in in federate federate__p3
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 0, 6, "federate 6 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              0, 6, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 0, 6);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_1<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__s3 to p3.AV_in in federate federate__p3
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 1, 6, "federate 6 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              1, 6, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 1, 6);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_2<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__s3 to p3.CP_in in federate federate__p3
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 2, 6, "federate 6 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              2, 6, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 2, 6);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_3<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__s3 to p3.CV_in in federate federate__p3
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 3, 6, "federate 6 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              3, 6, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 3, 6);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_4<SENDERINDEXPARAMETER> {
+  input[1] msg: double
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__s3 to plant.request_s3 in federate federate__plant
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(double);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 2, 8, "federate 8 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              2, 8, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 2, 8);
+    }
+  =}
+}
+@_network_sender
+reactor NetworkSender_5<SENDERINDEXPARAMETER> {
+  input[1] msg: time
+
+  reaction(startup) {=
+    extern reaction_t* port_absent_reaction[];
+    void lf_enqueue_port_absent_reactions(environment_t*);
+    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
+    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
+    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
+    lf_enqueue_port_absent_reactions(self->base.environment);
+  =}
+
+  reaction(msg) {=
+    // Sending from msg[0] in federate federate__s3 to p3.sim_start_time in federate federate__p3
+    if (!msg[0]->is_present) {
+    return;
+    }
+    size_t _lf_message_length = sizeof(interval_t);
+    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 4, 6, "federate 6 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
+  =}
+
+  reaction() msg {=
+    // If the output port has not been lf_set for the current logical time,
+    // send an ABSENT message to the receiving federate
+    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
+              4, 6, (long long) lf_time_logical_elapsed());
+    if (msg[0] == NULL || !msg[0]->is_present) {
+    LF_PRINT_LOG("The output port is NULL or it is not present.");
+        lf_send_port_absent_to_federate(self->base.environment, NEVER, 4, 6);
+    }
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_148 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_149 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_150 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_network_receiver
+reactor NetworkReceiver_151 {
+  output msg: double
+
+  logical action networkMessage: double
+
+  reaction(networkMessage) -> msg {=
+    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
+    lf_set(msg, networkMessage->value);
+  =}
+}
+@_fed_config()
+main reactor  {
+
+    s3 = new Sensor() at 10.34.167.172;
+    
+    
+    
+    
+    
+    @_tpoLevel(13)
+    ns_federate__p3 = new NetworkSender_0<{= 0 =}>()
+    @_tpoLevel(15)
+    ns_federate__p3_0 = new NetworkSender_1<{= 1 =}>()
+    @_tpoLevel(17)
+    ns_federate__p3_1 = new NetworkSender_2<{= 2 =}>()
+    @_tpoLevel(19)
+    ns_federate__p3_2 = new NetworkSender_3<{= 3 =}>()
+    @_tpoLevel(1)
+    ns_federate__plant_1 = new NetworkSender_4<{= 4 =}>()
+    @_tpoLevel(1)
+    ns_federate__p3_3 = new NetworkSender_5<{= 5 =}>()
+    @_tpoLevel(4)
+    nr_federate__s3 = new NetworkReceiver_148()
+    @_tpoLevel(6)
+    nr_federate__s3_0 = new NetworkReceiver_149()
+    @_tpoLevel(8)
+    nr_federate__s3_1 = new NetworkReceiver_150()
+    @_tpoLevel(10)
+    nr_federate__s3_2 = new NetworkReceiver_151()
+    _s3AP_in0 = new _s3AP_in()
+    _s3AV_in0 = new _s3AV_in()
+    _s3CP_in0 = new _s3CP_in()
+    _s3CV_in0 = new _s3CV_in()
+    _s3AP_in0.port -> s3.AP_in
+    _s3AV_in0.port -> s3.AV_in
+    _s3CP_in0.port -> s3.CP_in
+    _s3CV_in0.port -> s3.CV_in
+    s3.AP_out -> ns_federate__p3.msg
+    s3.AV_out -> ns_federate__p3_0.msg
+    s3.CP_out -> ns_federate__p3_1.msg
+    s3.CV_out -> ns_federate__p3_2.msg
+    s3.request -> ns_federate__plant_1.msg
+    s3.sim_start_time -> ns_federate__p3_3.msg
+    nr_federate__s3.msg -> _s3AP_in0.port0
+    nr_federate__s3_0.msg -> _s3AV_in0.port0
+    nr_federate__s3_1.msg -> _s3CP_in0.port0
+    nr_federate__s3_2.msg -> _s3CV_in0.port0
+}

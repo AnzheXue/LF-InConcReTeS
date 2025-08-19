@@ -1,14 +1,47 @@
-target C
+target C {
+    timeout: 5 s
+}
 
 reactor Sensor {
-    timer t(0, 100 ms);
-    output out: double[4];
-    state in: double[4];
-    physical action read;
+    timer t(0, 50 ms);
 
-    reaction(t) -> out {=
-        for (int i = 0; i < output_width; i++) {
-            lf_set(out[i], self->in[i]);
-        }
+    input AP_in: double;
+    input AV_in: double;
+    input CP_in: double;
+    input CV_in: double;
+
+    output AP_out: double;
+    output AV_out: double;
+    output CP_out: double;
+    output CV_out: double;
+    output request: double; 
+
+
+    reaction(t) -> request {=
+        lf_set(request, 0.0);
+        // lf_print("request = %f\n", request->value);
+        // lf_print("out[1] = %f\n", out[1]->value);
+        // lf_print("out[2] = %f\n", out[2]->value);
+        // lf_print("out[3] = %f\n", out[3]->value);
+    =}
+
+    reaction(AP_in) -> AP_out {=
+        lf_set(AP_out, AP_in->value);
+        // lf_print("AP_out = %f\n", AP_out->value);
+    =}
+
+    reaction(AV_in) -> AV_out {=
+        lf_set(AV_out, AV_in->value);
+        // lf_print("AV_out = %f\n", AV_out->value);
+    =}
+
+    reaction(CP_in) -> CP_out {=
+        lf_set(CP_out, CP_in->value);
+        // lf_print("CP_out = %f\n", CP_out->value);
+    =}
+
+    reaction(CV_in) -> CV_out {=
+        lf_set(CV_out, CV_in->value);
+        // lf_print("CV_out = %f\n", CV_out->value);
     =}
 }

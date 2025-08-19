@@ -1,0 +1,87 @@
+#ifndef __AP2_FORCE_H
+#define __AP2_FORCE_H
+#include "include/core/reactor.h"
+#ifndef TOP_LEVEL_PREAMBLE_1869219801_H
+#define TOP_LEVEL_PREAMBLE_1869219801_H
+typedef struct {
+    char key[32 + 1];
+    double value;
+    uint64_t time;
+} tuple;
+
+typedef struct {
+    double value;
+    int count;
+    int first_index;
+} tally;
+
+#include <string.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "core/federated/federate.h"
+#include "core/federated/network/net_common.h"
+#include "core/federated/network/net_util.h"
+#include "core/federated/network/socket_common.h"
+#include "core/federated/clock-sync.h"
+#include "core/threaded/reactor_threaded.h"
+#include "core/utils/util.h"
+extern federate_instance_t _fed;
+#ifdef __cplusplus
+}
+#endif
+#endif
+typedef struct {
+    token_type_t type;
+    lf_token_t* token;
+    size_t length;
+    bool is_present;
+    lf_port_internal_t _base;
+    double value;
+    #ifdef FEDERATED
+    #ifdef FEDERATED_DECENTRALIZED
+    tag_t intended_tag;
+    #endif
+    interval_t physical_time_of_arrival;
+    #endif
+} __ap2_force_port0_t;
+typedef struct {
+    token_type_t type;
+    lf_token_t* token;
+    size_t length;
+    bool is_present;
+    lf_port_internal_t _base;
+    double value;
+    #ifdef FEDERATED
+    #ifdef FEDERATED_DECENTRALIZED
+    tag_t intended_tag;
+    #endif
+    interval_t physical_time_of_arrival;
+    #endif
+} __ap2_force_port_t;
+typedef struct {
+    struct self_base_t base;
+#line 65 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__a/__ap2_force.h"
+#line 66 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__a/__ap2_force.h"
+    __ap2_force_port0_t* _lf_port0;
+    // width of -2 indicates that it is not a multiport.
+    int _lf_port0_width;
+    // Default input (in case it does not get connected)
+    __ap2_force_port0_t _lf_default__port0;
+    // Array of output ports.
+    __ap2_force_port_t* _lf_port;
+    int _lf_port_width;
+    // An array of pointers to the individual ports. Useful
+    // for the lf_set macros to work out-of-the-box for
+    // multiports in the body of reactions because their 
+    // value can be accessed via a -> operator (e.g.,foo[i]->value).
+    // So we have to handle multiports specially here a construct that
+    // array of pointers.
+    __ap2_force_port_t** _lf_port_pointers;
+    trigger_t _lf__port0;
+    #ifdef FEDERATED
+    
+    #endif // FEDERATED
+} __ap2_force_self_t;
+__ap2_force_self_t* new___ap2_force();
+#endif // __AP2_FORCE_H

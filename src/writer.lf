@@ -1,13 +1,5 @@
 target C
 
-preamble {=
-    struct tuple {
-        char key[32 + 1];
-        char value[64 + 1];
-        uint64_t time;
-    };
-=}
-
 reactor writer {
     input error: double;
     input integral: double;
@@ -20,18 +12,22 @@ reactor writer {
     output output_force: double;
 
     reaction (global_target) -> output_target {=
-        lf_set(output_target, global_target);
+        lf_set(output_target, global_target->value);
+        // lf_print("Write global target: %f\n", global_target->value);
     =}
 
     reaction (error) -> output_error {=
-        lf_set(output_error, error);
+        lf_set(output_error, error->value);
+        // lf_print("Write error: %f\n", error->value);
     =}
 
     reaction (integral) -> output_integral {=
-        lf_set(output_integral, integral);
+        lf_set(output_integral, integral->value);
+        // lf_print("Write integral: %f\n", integral->value);
     =}
 
     reaction (force) -> output_force {=
-        lf_set(output_force, force);
+        lf_set(output_force, force->value);
+        // lf_print("Write force: %f\n", force->value);
     =}
 }
