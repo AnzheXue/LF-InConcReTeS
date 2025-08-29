@@ -1,8 +1,8 @@
 #ifndef _SENSOR_H
 #define _SENSOR_H
 #include "include/core/reactor.h"
-#ifndef TOP_LEVEL_PREAMBLE_1376769350_H
-#define TOP_LEVEL_PREAMBLE_1376769350_H
+#ifndef TOP_LEVEL_PREAMBLE_652209987_H
+#define TOP_LEVEL_PREAMBLE_652209987_H
 typedef struct {
     char key[32 + 1];
     double value;
@@ -94,9 +94,8 @@ static int cmp_double(const void *a, const void *b) {
 
 #define sqr(x) ((x)*(x))
 #define MAX_VERSIONS 20
-#define PUBLISHING_INTERVAL 10000000
 #define TIMESTEP 0.05
-#define TIME_PERIOD 10
+#define TIME_PERIOD 800
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -254,8 +253,8 @@ typedef struct {
 } _sensor_sim_start_time_t;
 typedef struct {
     struct self_base_t base;
-#line 258 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__s2/_sensor.h"
-#line 259 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__s2/_sensor.h"
+#line 257 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__s2/_sensor.h"
+#line 258 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__s2/_sensor.h"
     _sensor_AP_in_t* _lf_AP_in;
     // width of -2 indicates that it is not a multiport.
     int _lf_AP_in_width;

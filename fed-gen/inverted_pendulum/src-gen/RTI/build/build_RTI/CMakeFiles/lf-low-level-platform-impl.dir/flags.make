@@ -4,7 +4,7 @@
 # compile C with /usr/bin/cc
 C_DEFINES = -DLOG_LEVEL=2 -DPLATFORM_Linux
 
-C_INCLUDES = -I/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/RTI/low_level_platform/api -I/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/RTI/tag/api -I/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/RTI/logging/api
+C_INCLUDES = -I/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/RTI/low_level_platform/api -I/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/RTI/tag/api -I/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/RTI/logging/api
 
 C_FLAGS = -Wall -Wextra -Wpedantic -Werror
 

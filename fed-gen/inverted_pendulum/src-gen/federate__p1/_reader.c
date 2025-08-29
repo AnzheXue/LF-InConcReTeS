@@ -11,8 +11,8 @@ void _readerreaction_function_0(void* instance_args) {
     int input_globalT_width = self->_lf_input_globalT_width; SUPPRESS_UNUSED_WARNING(input_globalT_width);
     _reader_output_globalT_t* output_globalT = &self->_lf_output_globalT;
     _reader_sr_t* sr = &self->_lf_sr;
-    #line 173 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p1.lf"
-    if (input_globalT->value < 100) {
+    #line 172 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p1.lf"
+    if (input_globalT->value != -1) {
         add_successful_reads(1);
     }
     // } else {
@@ -22,7 +22,7 @@ void _readerreaction_function_0(void* instance_args) {
     // lf_print("successful_reads: %d\n", successful_reads);
     lf_set(sr, successful_reads);
     // lf_print("output_globalT = %f\n", output_globalT->value);
-#line 26 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
+#line 26 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -32,8 +32,8 @@ void _readerreaction_function_1(void* instance_args) {
     int input_globalI_width = self->_lf_input_globalI_width; SUPPRESS_UNUSED_WARNING(input_globalI_width);
     _reader_output_globalI_t* output_globalI = &self->_lf_output_globalI;
     _reader_sr_t* sr = &self->_lf_sr;
-    #line 187 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p1.lf"
-    if (input_globalI->value < 100) {
+    #line 186 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p1.lf"
+    if (input_globalI->value != -1) {
         add_successful_reads(1);
     }
     // else {
@@ -43,7 +43,7 @@ void _readerreaction_function_1(void* instance_args) {
     // lf_print("successful_reads: %d\n", successful_reads);
     lf_set(sr, successful_reads);
     // lf_print("output_globalI = %f\n", output_globalI->value);
-#line 47 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
+#line 47 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -53,7 +53,7 @@ void _readerreaction_function_2(void* instance_args) {
     int input_globalE_width = self->_lf_input_globalE_width; SUPPRESS_UNUSED_WARNING(input_globalE_width);
     _reader_output_globalE_t* output_globalE = &self->_lf_output_globalE;
     _reader_sr_t* sr = &self->_lf_sr;
-    #line 201 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p1.lf"
+    #line 200 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p1.lf"
     if (input_globalE->value != -1) {
         add_successful_reads(1);
     }
@@ -64,7 +64,7 @@ void _readerreaction_function_2(void* instance_args) {
     // lf_print("successful_reads: %d\n", successful_reads);
     lf_set(sr, successful_reads);
     // lf_print("output_globalE = %f\n", output_globalE->value);
-#line 68 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
+#line 68 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -73,10 +73,10 @@ void _readerreaction_function_3(void* instance_args) {
     _reader_AP_in_t* AP_in = self->_lf_AP_in;
     int AP_in_width = self->_lf_AP_in_width; SUPPRESS_UNUSED_WARNING(AP_in_width);
     _reader_AP_out_t* AP_out = &self->_lf_AP_out;
-    #line 227 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p1.lf"
+    #line 226 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p1.lf"
     lf_set(AP_out, AP_in -> value);
     // lf_print("AP_out = %f\n", AP_out->value);
-#line 80 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
+#line 80 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -85,10 +85,10 @@ void _readerreaction_function_4(void* instance_args) {
     _reader_AV_in_t* AV_in = self->_lf_AV_in;
     int AV_in_width = self->_lf_AV_in_width; SUPPRESS_UNUSED_WARNING(AV_in_width);
     _reader_AV_out_t* AV_out = &self->_lf_AV_out;
-    #line 233 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p1.lf"
+    #line 232 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p1.lf"
     lf_set(AV_out, AV_in -> value);
     // lf_print("AV_out = %f\n", AV_out->value);
-#line 92 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
+#line 92 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -97,10 +97,10 @@ void _readerreaction_function_5(void* instance_args) {
     _reader_CP_in_t* CP_in = self->_lf_CP_in;
     int CP_in_width = self->_lf_CP_in_width; SUPPRESS_UNUSED_WARNING(CP_in_width);
     _reader_CP_out_t* CP_out = &self->_lf_CP_out;
-    #line 239 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p1.lf"
+    #line 238 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p1.lf"
     lf_set(CP_out, CP_in -> value);
     // lf_print("CP_out = %f\n", CP_out->value);
-#line 104 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
+#line 104 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -109,10 +109,10 @@ void _readerreaction_function_6(void* instance_args) {
     _reader_CV_in_t* CV_in = self->_lf_CV_in;
     int CV_in_width = self->_lf_CV_in_width; SUPPRESS_UNUSED_WARNING(CV_in_width);
     _reader_CV_out_t* CV_out = &self->_lf_CV_out;
-    #line 245 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p1.lf"
+    #line 244 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p1.lf"
     lf_set(CV_out, CV_in -> value);
     // lf_print("CV_out = %f\n", CV_out->value);
-#line 116 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
+#line 116 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -122,17 +122,17 @@ void _readerreaction_function_7(void* instance_args) {
     _reader_request_I_t* request_I = &self->_lf_request_I;
     _reader_request_E_t* request_E = &self->_lf_request_E;
     _reader_tr_t* tr = &self->_lf_tr;
-    #line 256 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p1.lf"
-    lf_set(request_T, lf_time_physical_elapsed());
-    lf_set(request_I, lf_time_physical_elapsed());
-    lf_set(request_E, lf_time_physical_elapsed());
+    #line 255 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p1.lf"
+    lf_set(request_T, lf_time_logical_elapsed());
+    lf_set(request_I, lf_time_logical_elapsed());
+    lf_set(request_E, lf_time_logical_elapsed());
     add_total_reads(3);
     // lf_print("total_reads: %d\n", total_reads);
     lf_set(tr, total_reads);
     // lf_print("request_T = %ld\n", request_T->value);
     // lf_print("request_I = %ld\n", request_I->value);
     // lf_print("request_E = %ld\n", request_E->value);
-#line 136 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
+#line 136 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p1/_reader.c"
 }
 #include "include/api/reaction_macros_undef.h"
 _reader_self_t* new__reader() {

@@ -1,9 +1,9 @@
 #ifndef _app_H
 #define _app_H
 #ifndef _APP_H // necessary for arduino-cli, which automatically includes headers that are not used
-#ifndef TOP_LEVEL_PREAMBLE_1697125968_H
-#define TOP_LEVEL_PREAMBLE_1697125968_H
-/*Correspondence: Range: [(25, 0), (118, 22)) -> Range: [(0, 0), (93, 22)) (verbatim=true; src=/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p1.lf)*/typedef struct {
+#ifndef TOP_LEVEL_PREAMBLE_1013607482_H
+#define TOP_LEVEL_PREAMBLE_1013607482_H
+/*Correspondence: Range: [(25, 0), (117, 23)) -> Range: [(0, 0), (92, 23)) (verbatim=true; src=/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p1.lf)*/typedef struct {
     char key[32 + 1];
     double value;
     uint64_t time;
@@ -94,10 +94,9 @@ static int cmp_double(const void *a, const void *b) {
 
 #define sqr(x) ((x)*(x))
 #define MAX_VERSIONS 20
-#define PUBLISHING_INTERVAL 10000000
 #define TIMESTEP 0.05
-#define TIME_PERIOD 10
-/*Correspondence: Range: [(121, 0), (134, 6)) -> Range: [(0, 0), (13, 6)) (verbatim=true; src=/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p1.lf)*/#ifdef __cplusplus
+#define TIME_PERIOD 800
+/*Correspondence: Range: [(120, 0), (133, 6)) -> Range: [(0, 0), (13, 6)) (verbatim=true; src=/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p1.lf)*/#ifdef __cplusplus
 extern "C" {
 #endif
 #include "core/federated/federate.h"
@@ -748,7 +747,7 @@ typedef struct {
     lf_port_internal_t _base;
     interval_t value;
 
-} _lf_gendelay_3189243e_inp_t;
+} _lf_gendelay_bbee423e_inp_t;
 typedef struct {
     token_type_t type;
     lf_token_t* token;
@@ -757,7 +756,7 @@ typedef struct {
     lf_port_internal_t _base;
     interval_t value;
 
-} _lf_gendelay_3189243e_out_t;
+} _lf_gendelay_bbee423e_out_t;
 typedef struct {
     token_type_t type;
     lf_token_t* token;
@@ -766,7 +765,7 @@ typedef struct {
     lf_port_internal_t _base;
     interval_t value;
 
-} _lf_gendelay_74e099e_inp_t;
+} _lf_gendelay_91b3279e_inp_t;
 typedef struct {
     token_type_t type;
     lf_token_t* token;
@@ -775,7 +774,7 @@ typedef struct {
     lf_port_internal_t _base;
     interval_t value;
 
-} _lf_gendelay_74e099e_out_t;
+} _lf_gendelay_91b3279e_out_t;
 typedef struct {
     token_type_t type;
     lf_token_t* token;
@@ -784,7 +783,7 @@ typedef struct {
     lf_port_internal_t _base;
     interval_t value;
 
-} _lf_gendelay_dd12eefe_inp_t;
+} _lf_gendelay_67780cfe_inp_t;
 typedef struct {
     token_type_t type;
     lf_token_t* token;
@@ -793,6 +792,6 @@ typedef struct {
     lf_port_internal_t _base;
     interval_t value;
 
-} _lf_gendelay_dd12eefe_out_t;
+} _lf_gendelay_67780cfe_out_t;
 #endif
 #endif

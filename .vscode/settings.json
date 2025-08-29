@@ -1,5 +1,6 @@
 {
     "files.associations": {
         "iostream": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "C:/Users/32739/LF/LF-InConcReTeS/src-gen/inverted_pendulum/core/modal_models"
 }

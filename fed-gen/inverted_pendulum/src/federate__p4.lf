@@ -114,9 +114,8 @@ static int cmp_double(const void *a, const void *b) {
 
 #define sqr(x) ((x)*(x))
 #define MAX_VERSIONS 20
-#define PUBLISHING_INTERVAL 10000000
 #define TIMESTEP 0.05
-#define TIME_PERIOD 10
+#define TIME_PERIOD 800
 =}
 preamble {=
 #ifdef __cplusplus
@@ -138,7 +137,7 @@ extern federate_instance_t _fed;
 =}
 
 reactor reader {
-  timer t(0 ms, 10 ms)
+  timer t(0 ms, 800 ms)
 
   input input_globalT: double
   input input_globalI: double
@@ -170,7 +169,7 @@ reactor reader {
   // state initial_CV: double = 0.0;
   reaction(input_globalT) ->
   output_globalT, sr {=
-    if (input_globalT->value < 100) {
+    if (input_globalT->value != -1) {
         add_successful_reads(1);
     }
     // } else {
@@ -184,7 +183,7 @@ reactor reader {
 
   reaction(input_globalI) ->
   output_globalI, sr {=
-    if (input_globalI->value < 100) {
+    if (input_globalI->value != -1) {
         add_successful_reads(1);
     }
     // else {
@@ -253,9 +252,9 @@ reactor reader {
   // =}
   reaction(t) ->
   request_T, request_I, request_E, tr {=
-    lf_set(request_T, lf_time_physical_elapsed());
-    lf_set(request_I, lf_time_physical_elapsed());
-    lf_set(request_E, lf_time_physical_elapsed());
+    lf_set(request_T, lf_time_logical_elapsed());
+    lf_set(request_I, lf_time_logical_elapsed());
+    lf_set(request_E, lf_time_logical_elapsed());
     add_total_reads(3);
     // lf_print("total_reads: %d\n", total_reads);
     lf_set(tr, total_reads);
@@ -265,7 +264,7 @@ reactor reader {
   =}
 }
 reactor compute {
-  timer t(1 ns, 10 ms)
+  timer t(1 ns, 800 ms)
 
   input AP_in: double
   input AV_in: double
@@ -486,6 +485,35 @@ reactor App {
 
   r.sr -> sr
   r.tr -> tr
+  // input_globalI ~> r.input_globalI;
+  // input_globalT ~> r.input_globalT;
+  // input_globalE ~> r.input_globalE;
+  // AP_in ~> r.AP_in;
+  // AV_in ~> r.AV_in;
+  // CP_in ~> r.CP_in;
+  // CV_in ~> r.CV_in;
+  // r.output_globalI ~> c.globalI;
+  // r.output_globalT ~> c.globalT;
+  // r.output_globalE ~> c.globalE;
+  // r.request_T ~> request_T after 0 ms;
+  // r.request_I ~> request_I after 0 ms;
+  // r.request_E ~> request_E after 0 ms;
+  // r.AP_out ~> c.AP_in;
+  // r.AV_out ~> c.AV_in;
+  // r.CP_out ~> c.CP_in;
+  // r.CV_out ~> c.CV_in;
+  // c.force ~> w.force;
+  // c.integral ~> w.integral;
+  // c.error ~> w.error;
+  // c.global_target ~> w.global_target;
+  // w.output_force ~> a.input_force;
+  // w.output_target ~> output_target;
+  // w.output_integral ~> output_integral;
+  // w.output_error ~> output_error;
+  // a.output_force ~> output_force;
+  // r.sr ~> sr;
+  // r.tr ~> tr;
+  // w.tw ~> tw;
   w.tw -> tw
 }
 reactor unpublished_store {
@@ -508,7 +536,7 @@ reactor unpublished_store {
     tuple t;
     strncpy(t.key, "error", sizeof(t.key));
     t.value = error -> value;
-    t.time = lf_time_physical_elapsed();
+    t.time = lf_time_logical_elapsed() + TIME_PERIOD * 1000000;
     lf_set(output_error, t);
     add_successful_writes(1);
     // lf_print("successful_writes: %d\n", successful_writes);
@@ -523,7 +551,7 @@ reactor unpublished_store {
     tuple t;
     strncpy(t.key, "integral", sizeof(t.key));
     t.value = integral -> value;
-    t.time = lf_time_physical_elapsed();
+    t.time = lf_time_logical_elapsed() + TIME_PERIOD * 1000000;
     lf_set(output_integral, t);
     add_successful_writes(1);
     // lf_print("successful_writes: %d\n", successful_writes);
@@ -583,7 +611,7 @@ reactor unpublished_store {
     tuple t;
     strncpy(t.key, "target", sizeof(t.key));
     t.value = global_target->value;
-    t.time = lf_time_physical_elapsed();
+    t.time = lf_time_logical_elapsed() + TIME_PERIOD * 1000000;
     lf_set(output_target, t);
     add_successful_writes(1);
     // lf_print("successful_writes: %d\n", successful_writes);
@@ -667,7 +695,11 @@ reactor published_store {
         // if (request_T->value - self->g_target.time > TIME_PERIOD) {
         //     lf_set(output_globalT, -1);
         // } else {
-        lf_set(output_globalT, self->g_target.value);
+        if (request_T->value - self->g_target.time >= TIME_PERIOD * 1000000) {
+            lf_set(output_globalT, -1);
+        } else {
+            lf_set(output_globalT, self->g_target.value);
+        }
         // }
     } else if(vt[self->min_index_T].time > request_T->value || self->version_T_count == 0) {
         // lf_print("T:2");
@@ -694,8 +726,11 @@ reactor published_store {
         // if (request_I->value - self->global_integral.time > TIME_PERIOD) {
         //     lf_set(output_globalI, -1);
         // } else {
-        lf_set(output_globalI, self->global_integral.value);
-        // }
+        if (request_I->value - self->global_integral.time >= TIME_PERIOD * 1000000) {
+            lf_set(output_globalI, -1);
+        } else {
+            lf_set(output_globalI, self->global_integral.value);
+        }
     } else if(vi[self->min_index_I].time > request_I->value || self->version_I_count == 0) {
         // lf_print("I:2");
         lf_request_stop();
@@ -726,7 +761,11 @@ reactor published_store {
         // if (request_E->value - self->global_error.time > TIME_PERIOD) {
         //     lf_set(output_globalE, -1);
         // } else {
-        lf_set(output_globalE, self->global_error.value);
+        if (request_E->value - self->global_error.time >= TIME_PERIOD * 1000000) {
+            lf_set(output_globalE, -1);
+        } else {
+            lf_set(output_globalE, self->global_error.value);
+        }
         // }
     } else if(ve[self->min_index_E].time > request_E->value || self->version_E_count == 0) {
         // lf_print("E:2");
@@ -1013,34 +1052,59 @@ reactor EIGtree {
   et2 = new EIGtree2()
   etr = new EIGtreeReduction()
 
-  store_in -> et0.store_in
-  p1_in -> et1.p1_in
-  p2_in -> et1.p2_in
-  p3_in -> et1.p3_in
-  p1p2_in -> et2.p1p2_in
-  p1p3_in -> et2.p1p3_in
-  p2p1_in -> et2.p2p1_in
-  p2p3_in -> et2.p2p3_in
-  p3p1_in -> et2.p3p1_in
-  p3p2_in -> et2.p3p2_in
+  // store_in -> et0.store_in;
+  // p1_in -> et1.p1_in;
+  // p2_in -> et1.p2_in;
+  // p3_in -> et1.p3_in;
+  // p1p2_in -> et2.p1p2_in;
+  // p1p3_in -> et2.p1p3_in;
+  // p2p1_in -> et2.p2p1_in;
+  // p2p3_in -> et2.p2p3_in;
+  // p3p1_in -> et2.p3p1_in;
+  // p3p2_in -> et2.p3p2_in;
+  // et0.round0_out -> etr.round0_in;
+  // et1.p0p1_out -> etr.p0p1_in;
+  // et1.p0p2_out -> etr.p0p2_in;
+  // et1.p0p3_out -> etr.p0p3_in;
+  // et2.p0p1p2_out -> etr.p0p1p2_in;
+  // et2.p0p1p3_out -> etr.p0p1p3_in;
+  // et2.p0p2p1_out -> etr.p0p2p1_in;
+  // et2.p0p2p3_out -> etr.p0p2p3_in;
+  // et2.p0p3p1_out -> etr.p0p3p1_in;
+  // et2.p0p3p2_out -> etr.p0p3p2_in;
+  // etr.final_out -> final_out;
+  // et0.round0_out -> round0_out;
+  // et1.p0p1_out -> p0p1_out;
+  // et1.p0p2_out -> p0p2_out;
+  // et1.p0p3_out -> p0p3_out;
+  store_in ~> et0.store_in
+  p1_in ~> et1.p1_in
+  p2_in ~> et1.p2_in
+  p3_in ~> et1.p3_in
+  p1p2_in ~> et2.p1p2_in
+  p1p3_in ~> et2.p1p3_in
+  p2p1_in ~> et2.p2p1_in
+  p2p3_in ~> et2.p2p3_in
+  p3p1_in ~> et2.p3p1_in
+  p3p2_in ~> et2.p3p2_in
 
-  et0.round0_out -> etr.round0_in
-  et1.p0p1_out -> etr.p0p1_in
-  et1.p0p2_out -> etr.p0p2_in
-  et1.p0p3_out -> etr.p0p3_in
-  et2.p0p1p2_out -> etr.p0p1p2_in
-  et2.p0p1p3_out -> etr.p0p1p3_in
-  et2.p0p2p1_out -> etr.p0p2p1_in
-  et2.p0p2p3_out -> etr.p0p2p3_in
-  et2.p0p3p1_out -> etr.p0p3p1_in
-  et2.p0p3p2_out -> etr.p0p3p2_in
+  et0.round0_out ~> etr.round0_in
+  et1.p0p1_out ~> etr.p0p1_in
+  et1.p0p2_out ~> etr.p0p2_in
+  et1.p0p3_out ~> etr.p0p3_in
+  et2.p0p1p2_out ~> etr.p0p1p2_in
+  et2.p0p1p3_out ~> etr.p0p1p3_in
+  et2.p0p2p1_out ~> etr.p0p2p1_in
+  et2.p0p2p3_out ~> etr.p0p2p3_in
+  et2.p0p3p1_out ~> etr.p0p3p1_in
+  et2.p0p3p2_out ~> etr.p0p3p2_in
 
-  etr.final_out -> final_out
+  etr.final_out ~> final_out
 
-  et0.round0_out -> round0_out
-  et1.p0p1_out -> p0p1_out
-  et1.p0p2_out -> p0p2_out
-  et1.p0p3_out -> p0p3_out
+  et0.round0_out ~> round0_out
+  et1.p0p1_out ~> p0p1_out
+  et1.p0p2_out ~> p0p2_out
+  et1.p0p3_out ~> p0p3_out
 
   // et2.p0p1p2_out -> p0p1p2_out;
   // et2.p0p1p3_out -> p0p1p3_out;
@@ -1051,7 +1115,7 @@ reactor EIGtree {
   reaction(
       store_in) {=
     self->start_time = lf_time_physical_elapsed();
-    self->logical_start_time = lf_time_logical_elapsed();
+    // self->logical_start_time = lf_time_logical_elapsed();
     // lf_print("EIGtree started at: %lld\n", self->start_time);
   =}
 
@@ -1078,7 +1142,7 @@ reactor EIGtree {
   reaction(
       etr.final_out) {=
     self->end_time = lf_time_physical_elapsed();
-    self->logical_end_time = lf_time_logical_elapsed();
+    // self->logical_end_time = lf_time_logical_elapsed();
     // lf_print("KVSLatency_ms: %lld\n", (self->end_time - self->start_time) / 1000000);
     long long delta = (self->end_time - self->start_time) / 1000000;
     if (delta > 5) {
@@ -1186,78 +1250,60 @@ reactor pi4 {
   a.output_integral -> us.integral
   a.output_target -> us.global_target
 
-  us.output_error -> e1.store_in
-  us.output_integral -> e2.store_in
-  us.output_target -> e3.store_in
+  us.output_error ~> e1.store_in
+  us.output_integral ~> e2.store_in
+  us.output_target ~> e3.store_in
 
-  e1_p1_in -> e1.p1_in
-  e1_p2_in -> e1.p2_in
-  e1_p3_in -> e1.p3_in
-  e1_p1p2_in -> e1.p1p2_in
-  e1_p1p3_in -> e1.p1p3_in
-  e1_p2p1_in -> e1.p2p1_in
-  e1_p2p3_in -> e1.p2p3_in
-  e1_p3p1_in -> e1.p3p1_in
-  e1_p3p2_in -> e1.p3p2_in
+  e1_p1_in ~> e1.p1_in
+  e1_p2_in ~> e1.p2_in
+  e1_p3_in ~> e1.p3_in
+  e1_p1p2_in ~> e1.p1p2_in
+  e1_p1p3_in ~> e1.p1p3_in
+  e1_p2p1_in ~> e1.p2p1_in
+  e1_p2p3_in ~> e1.p2p3_in
+  e1_p3p1_in ~> e1.p3p1_in
+  e1_p3p2_in ~> e1.p3p2_in
 
-  e1.round0_out -> e1_round0_out
-  e1.p0p1_out -> e1_p0p1_out
-  e1.p0p2_out -> e1_p0p2_out
-  e1.p0p3_out -> e1_p0p3_out
+  e1.round0_out ~> e1_round0_out
+  e1.p0p1_out ~> e1_p0p1_out
+  e1.p0p2_out ~> e1_p0p2_out
+  e1.p0p3_out ~> e1_p0p3_out
 
-  // e1.p0p1p2_out -> e1_p0p1p2_out;
-  // e1.p0p1p3_out -> e1_p0p1p3_out;
-  // e1.p0p2p1_out -> e1_p0p2p1_out;
-  // e1.p0p2p3_out -> e1_p0p2p3_out;
-  // e1.p0p3p1_out -> e1_p0p3p1_out;
-  // e1.p0p3p2_out -> e1_p0p3p2_out;
-  e1.final_out -> ps.input_globalE after 0 ms
+  e1.final_out ~> ps.input_globalE after 0 ms
 
-  e2_p1_in -> e2.p1_in
-  e2_p2_in -> e2.p2_in
-  e2_p3_in -> e2.p3_in
-  e2_p1p2_in -> e2.p1p2_in
-  e2_p1p3_in -> e2.p1p3_in
-  e2_p2p1_in -> e2.p2p1_in
-  e2_p2p3_in -> e2.p2p3_in
-  e2_p3p1_in -> e2.p3p1_in
-  e2_p3p2_in -> e2.p3p2_in
+  e2_p1_in ~> e2.p1_in
+  e2_p2_in ~> e2.p2_in
+  e2_p3_in ~> e2.p3_in
+  e2_p1p2_in ~> e2.p1p2_in
+  e2_p1p3_in ~> e2.p1p3_in
+  e2_p2p1_in ~> e2.p2p1_in
+  e2_p2p3_in ~> e2.p2p3_in
+  e2_p3p1_in ~> e2.p3p1_in
+  e2_p3p2_in ~> e2.p3p2_in
 
-  e2.round0_out -> e2_round0_out
-  e2.p0p1_out -> e2_p0p1_out
-  e2.p0p2_out -> e2_p0p2_out
-  e2.p0p3_out -> e2_p0p3_out
+  e2.round0_out ~> e2_round0_out
+  e2.p0p1_out ~> e2_p0p1_out
+  e2.p0p2_out ~> e2_p0p2_out
+  e2.p0p3_out ~> e2_p0p3_out
 
-  // e2.p0p1p2_out -> e2_p0p1p2_out;
-  // e2.p0p1p3_out -> e2_p0p1p3_out;
-  // e2.p0p2p1_out -> e2_p0p2p1_out;
-  // e2.p0p2p3_out -> e2_p0p2p3_out;
-  // e2.p0p3p1_out -> e2_p0p3p1_out;
-  // e2.p0p3p2_out -> e2_p0p3p2_out;
-  e2.final_out -> ps.input_globalI after 0 ms
+  e2.final_out ~> ps.input_globalI after 0 ms
 
-  e3_p1_in -> e3.p1_in
-  e3_p2_in -> e3.p2_in
-  e3_p3_in -> e3.p3_in
-  e3_p1p2_in -> e3.p1p2_in
-  e3_p1p3_in -> e3.p1p3_in
-  e3_p2p1_in -> e3.p2p1_in
-  e3_p2p3_in -> e3.p2p3_in
-  e3_p3p1_in -> e3.p3p1_in
-  e3_p3p2_in -> e3.p3p2_in
+  e3_p1_in ~> e3.p1_in
+  e3_p2_in ~> e3.p2_in
+  e3_p3_in ~> e3.p3_in
+  e3_p1p2_in ~> e3.p1p2_in
+  e3_p1p3_in ~> e3.p1p3_in
+  e3_p2p1_in ~> e3.p2p1_in
+  e3_p2p3_in ~> e3.p2p3_in
+  e3_p3p1_in ~> e3.p3p1_in
+  e3_p3p2_in ~> e3.p3p2_in
 
-  e3.round0_out -> e3_round0_out
-  e3.p0p1_out -> e3_p0p1_out
-  e3.p0p2_out -> e3_p0p2_out
-  e3.p0p3_out -> e3_p0p3_out
+  e3.round0_out ~> e3_round0_out
+  e3.p0p1_out ~> e3_p0p1_out
+  e3.p0p2_out ~> e3_p0p2_out
+  e3.p0p3_out ~> e3_p0p3_out
 
-  // e3.p0p1p2_out -> e3_p0p1p2_out;
-  // e3.p0p1p3_out -> e3_p0p1p3_out;
-  // e3.p0p2p1_out -> e3_p0p2p1_out;
-  // e3.p0p2p3_out -> e3_p0p2p3_out;
-  // e3.p0p3p1_out -> e3_p0p3p1_out;
-  // e3.p0p3p2_out -> e3_p0p3p2_out;
-  e3.final_out -> ps.input_globalT after 0 ms
+  e3.final_out ~> ps.input_globalT after 0 ms
 
   a.request_T -> ps.request_T
   a.request_I -> ps.request_I
@@ -1267,18 +1313,18 @@ reactor pi4 {
   ps.output_globalT -> a.input_globalT
   ps.output_globalE -> a.input_globalE
 
-  a.sr -> e1.sr
-  a.sr -> e2.sr
-  a.sr -> e3.sr
-  a.tr -> e1.tr
-  a.tr -> e2.tr
-  a.tr -> e3.tr
-  us.sw -> e1.sw
-  us.sw -> e2.sw
-  us.sw -> e3.sw
-  a.tw -> e1.tw
-  a.tw -> e2.tw
-  a.tw -> e3.tw
+  a.sr ~> e1.sr
+  a.sr ~> e2.sr
+  a.sr ~> e3.sr
+  a.tr ~> e1.tr
+  a.tr ~> e2.tr
+  a.tr ~> e3.tr
+  us.sw ~> e1.sw
+  us.sw ~> e2.sw
+  us.sw ~> e3.sw
+  a.tw ~> e1.tw
+  a.tw ~> e2.tw
+  a.tw ~> e3.tw
 
   reaction(sim_start_time) ->
   sim_st {=
@@ -1311,195 +1357,6 @@ reactor _p4CV_in {
   input port0: double
 
   output[1] port: double
-
-  port0 -> port
-}
-reactor _p4e1_p1_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e1_p2_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e1_p3_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e1_p1p2_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e1_p1p3_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e1_p2p1_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e1_p2p3_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e1_p3p1_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e1_p3p2_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e2_p1_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e2_p2_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e2_p3_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e2_p1p2_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e2_p1p3_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e2_p2p1_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e2_p2p3_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e2_p3p1_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e2_p3p2_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e3_p1_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e3_p2_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e3_p3_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e3_p1p2_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e3_p1p3_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e3_p2p1_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e3_p2p3_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e3_p3p1_in {
-  input port0: tuple
-
-  output[1] port: tuple
-
-  port0 -> port
-}
-reactor _p4e3_p3p2_in {
-  input port0: tuple
-
-  output[1] port: tuple
 
   port0 -> port
 }
@@ -1565,1196 +1422,8 @@ reactor NetworkReceiver_23 {
     lf_set(msg, networkMessage->value);
   =}
 }
-@_network_receiver
-reactor NetworkReceiver_26 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_28 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_30 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_35 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_37 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_39 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_44 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_46 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_48 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_55 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_57 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_59 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_64 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_66 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_68 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_73 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_75 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_77 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_84 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_86 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_88 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_93 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_95 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_97 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_102 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_104 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
-@_network_receiver
-reactor NetworkReceiver_106 {
-  output msg: tuple
-
-  logical action networkMessage: tuple
-
-  reaction(networkMessage) -> msg {=
-    msg->physical_time_of_arrival = self->_lf__networkMessage.physical_time_of_arrival;
-    lf_set(msg, networkMessage->value);
-  =}
-}
 @_network_sender
 reactor NetworkSender_0<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p1.e1_p3_in in federate federate__p1
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 23, 4, "federate 4 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              23, 4, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 23, 4);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_1<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p2.e1_p3_in in federate federate__p2
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 23, 5, "federate 5 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              23, 5, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 23, 5);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_2<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p3.e1_p3_in in federate federate__p3
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 23, 6, "federate 6 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              23, 6, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 23, 6);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_3<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p2.e1_p3p1_in in federate federate__p2
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 24, 5, "federate 5 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              24, 5, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 24, 5);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_4<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p3.e1_p3p1_in in federate federate__p3
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 24, 6, "federate 6 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              24, 6, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 24, 6);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_5<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p1.e1_p3p1_in in federate federate__p1
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 24, 4, "federate 4 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              24, 4, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 24, 4);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_6<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p3.e1_p3p2_in in federate federate__p3
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 25, 6, "federate 6 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              25, 6, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 25, 6);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_7<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p1.e1_p3p2_in in federate federate__p1
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 25, 4, "federate 4 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              25, 4, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 25, 4);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_8<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p2.e1_p3p2_in in federate federate__p2
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 25, 5, "federate 5 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              25, 5, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 25, 5);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_9<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p1.e2_p3_in in federate federate__p1
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 26, 4, "federate 4 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              26, 4, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 26, 4);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_10<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p2.e2_p3_in in federate federate__p2
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 26, 5, "federate 5 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              26, 5, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 26, 5);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_11<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p3.e2_p3_in in federate federate__p3
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 26, 6, "federate 6 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              26, 6, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 26, 6);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_12<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p2.e2_p3p1_in in federate federate__p2
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 27, 5, "federate 5 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              27, 5, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 27, 5);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_13<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p3.e2_p3p1_in in federate federate__p3
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 27, 6, "federate 6 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              27, 6, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 27, 6);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_14<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p1.e2_p3p1_in in federate federate__p1
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 27, 4, "federate 4 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              27, 4, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 27, 4);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_15<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p3.e2_p3p2_in in federate federate__p3
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 28, 6, "federate 6 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              28, 6, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 28, 6);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_16<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p1.e2_p3p2_in in federate federate__p1
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 28, 4, "federate 4 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              28, 4, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 28, 4);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_17<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p2.e2_p3p2_in in federate federate__p2
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 28, 5, "federate 5 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              28, 5, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 28, 5);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_18<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p1.e3_p3_in in federate federate__p1
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 29, 4, "federate 4 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              29, 4, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 29, 4);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_19<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p2.e3_p3_in in federate federate__p2
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 29, 5, "federate 5 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              29, 5, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 29, 5);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_20<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p3.e3_p3_in in federate federate__p3
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 29, 6, "federate 6 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              29, 6, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 29, 6);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_21<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p2.e3_p3p1_in in federate federate__p2
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 30, 5, "federate 5 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              30, 5, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 30, 5);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_22<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p3.e3_p3p1_in in federate federate__p3
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 30, 6, "federate 6 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              30, 6, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 30, 6);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_23<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p1.e3_p3p1_in in federate federate__p1
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 30, 4, "federate 4 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              30, 4, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 30, 4);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_24<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p3.e3_p3p2_in in federate federate__p3
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 31, 6, "federate 6 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              31, 6, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 31, 6);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_25<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p1.e3_p3p2_in in federate federate__p1
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 31, 4, "federate 4 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              31, 4, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 31, 4);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_26<SENDERINDEXPARAMETER> {
-  input[1] msg: tuple
-
-  reaction(startup) {=
-    extern reaction_t* port_absent_reaction[];
-    void lf_enqueue_port_absent_reactions(environment_t*);
-    LF_PRINT_DEBUG("Adding network port absent reaction to table.");
-    port_absent_reaction[SENDERINDEXPARAMETER] = &self->_lf__reaction_2;
-    LF_PRINT_DEBUG("Added network output control reaction to table. Enqueueing it...");
-    lf_enqueue_port_absent_reactions(self->base.environment);
-  =}
-
-  reaction(msg) {=
-    // Sending from msg[0] in federate federate__p4 to p2.e3_p3p2_in in federate federate__p2
-    if (!msg[0]->is_present) {
-    return;
-    }
-    size_t _lf_message_length = sizeof(tuple);
-    lf_send_tagged_message(self->base.environment, NEVER, MSG_TYPE_TAGGED_MESSAGE, 31, 5, "federate 5 via the RTI", _lf_message_length, (unsigned char*)&msg[0]->value);
-  =}
-
-  reaction() msg {=
-    // If the output port has not been lf_set for the current logical time,
-    // send an ABSENT message to the receiving federate
-    LF_PRINT_LOG("Executing port absent reaction for port %d to federate %d at time" PRINTF_TIME ".",
-              31, 5, (long long) lf_time_logical_elapsed());
-    if (msg[0] == NULL || !msg[0]->is_present) {
-    LF_PRINT_LOG("The output port is NULL or it is not present.");
-        lf_send_port_absent_to_federate(self->base.environment, NEVER, 31, 5);
-    }
-  =}
-}
-@_network_sender
-reactor NetworkSender_27<SENDERINDEXPARAMETER> {
   input[1] msg: double
 
   reaction(startup) {=
@@ -2787,7 +1456,7 @@ reactor NetworkSender_27<SENDERINDEXPARAMETER> {
   =}
 }
 @_network_sender
-reactor NetworkSender_28<SENDERINDEXPARAMETER> {
+reactor NetworkSender_1<SENDERINDEXPARAMETER> {
   input[1] msg: time
 
   reaction(startup) {=
@@ -2828,64 +1497,10 @@ main reactor  {
     
     
     
-    @_tpoLevel(37)
-    ns_federate__p1_22 = new NetworkSender_0<{= 0 =}>()
-    @_tpoLevel(37)
-    ns_federate__p2_22 = new NetworkSender_1<{= 1 =}>()
-    @_tpoLevel(37)
-    ns_federate__p3_22 = new NetworkSender_2<{= 2 =}>()
-    @_tpoLevel(45)
-    ns_federate__p2_23 = new NetworkSender_3<{= 3 =}>()
-    @_tpoLevel(45)
-    ns_federate__p3_23 = new NetworkSender_4<{= 4 =}>()
-    @_tpoLevel(45)
-    ns_federate__p1_23 = new NetworkSender_5<{= 5 =}>()
-    @_tpoLevel(45)
-    ns_federate__p3_24 = new NetworkSender_6<{= 6 =}>()
-    @_tpoLevel(47)
-    ns_federate__p1_24 = new NetworkSender_7<{= 7 =}>()
-    @_tpoLevel(47)
-    ns_federate__p2_24 = new NetworkSender_8<{= 8 =}>()
-    @_tpoLevel(39)
-    ns_federate__p1_25 = new NetworkSender_9<{= 9 =}>()
-    @_tpoLevel(39)
-    ns_federate__p2_25 = new NetworkSender_10<{= 10 =}>()
-    @_tpoLevel(39)
-    ns_federate__p3_25 = new NetworkSender_11<{= 11 =}>()
-    @_tpoLevel(47)
-    ns_federate__p2_26 = new NetworkSender_12<{= 12 =}>()
-    @_tpoLevel(47)
-    ns_federate__p3_26 = new NetworkSender_13<{= 13 =}>()
-    @_tpoLevel(47)
-    ns_federate__p1_26 = new NetworkSender_14<{= 14 =}>()
-    @_tpoLevel(47)
-    ns_federate__p3_27 = new NetworkSender_15<{= 15 =}>()
-    @_tpoLevel(49)
-    ns_federate__p1_27 = new NetworkSender_16<{= 16 =}>()
-    @_tpoLevel(49)
-    ns_federate__p2_27 = new NetworkSender_17<{= 17 =}>()
-    @_tpoLevel(41)
-    ns_federate__p1_28 = new NetworkSender_18<{= 18 =}>()
-    @_tpoLevel(41)
-    ns_federate__p2_28 = new NetworkSender_19<{= 19 =}>()
-    @_tpoLevel(41)
-    ns_federate__p3_28 = new NetworkSender_20<{= 20 =}>()
-    @_tpoLevel(49)
-    ns_federate__p2_29 = new NetworkSender_21<{= 21 =}>()
-    @_tpoLevel(49)
-    ns_federate__p3_29 = new NetworkSender_22<{= 22 =}>()
-    @_tpoLevel(49)
-    ns_federate__p1_29 = new NetworkSender_23<{= 23 =}>()
-    @_tpoLevel(49)
-    ns_federate__p3_30 = new NetworkSender_24<{= 24 =}>()
-    @_tpoLevel(51)
-    ns_federate__p1_30 = new NetworkSender_25<{= 25 =}>()
-    @_tpoLevel(51)
-    ns_federate__p2_30 = new NetworkSender_26<{= 26 =}>()
     @_tpoLevel(35)
-    ns_federate__plant_9 = new NetworkSender_27<{= 27 =}>()
+    ns_federate__plant_9 = new NetworkSender_0<{= 0 =}>()
     @_tpoLevel(9)
-    ns_federate__plant_10 = new NetworkSender_28<{= 28 =}>()
+    ns_federate__plant_10 = new NetworkSender_1<{= 1 =}>()
     @_tpoLevel(14)
     nr_federate__p4 = new NetworkReceiver_18()
     @_tpoLevel(16)
@@ -2896,183 +1511,21 @@ main reactor  {
     nr_federate__p4_2 = new NetworkReceiver_21()
     @_tpoLevel(2)
     nr_federate__p4_3 = new NetworkReceiver_23()
-    @_tpoLevel(34)
-    nr_federate__p4_4 = new NetworkReceiver_26()
-    @_tpoLevel(36)
-    nr_federate__p4_5 = new NetworkReceiver_28()
-    @_tpoLevel(38)
-    nr_federate__p4_6 = new NetworkReceiver_30()
-    @_tpoLevel(36)
-    nr_federate__p4_7 = new NetworkReceiver_35()
-    @_tpoLevel(38)
-    nr_federate__p4_8 = new NetworkReceiver_37()
-    @_tpoLevel(40)
-    nr_federate__p4_9 = new NetworkReceiver_39()
-    @_tpoLevel(38)
-    nr_federate__p4_10 = new NetworkReceiver_44()
-    @_tpoLevel(40)
-    nr_federate__p4_11 = new NetworkReceiver_46()
-    @_tpoLevel(42)
-    nr_federate__p4_12 = new NetworkReceiver_48()
-    @_tpoLevel(36)
-    nr_federate__p4_13 = new NetworkReceiver_55()
-    @_tpoLevel(40)
-    nr_federate__p4_14 = new NetworkReceiver_57()
-    @_tpoLevel(42)
-    nr_federate__p4_15 = new NetworkReceiver_59()
-    @_tpoLevel(38)
-    nr_federate__p4_16 = new NetworkReceiver_64()
-    @_tpoLevel(42)
-    nr_federate__p4_17 = new NetworkReceiver_66()
-    @_tpoLevel(44)
-    nr_federate__p4_18 = new NetworkReceiver_68()
-    @_tpoLevel(40)
-    nr_federate__p4_19 = new NetworkReceiver_73()
-    @_tpoLevel(44)
-    nr_federate__p4_20 = new NetworkReceiver_75()
-    @_tpoLevel(46)
-    nr_federate__p4_21 = new NetworkReceiver_77()
-    @_tpoLevel(38)
-    nr_federate__p4_22 = new NetworkReceiver_84()
-    @_tpoLevel(44)
-    nr_federate__p4_23 = new NetworkReceiver_86()
-    @_tpoLevel(46)
-    nr_federate__p4_24 = new NetworkReceiver_88()
-    @_tpoLevel(40)
-    nr_federate__p4_25 = new NetworkReceiver_93()
-    @_tpoLevel(46)
-    nr_federate__p4_26 = new NetworkReceiver_95()
-    @_tpoLevel(48)
-    nr_federate__p4_27 = new NetworkReceiver_97()
-    @_tpoLevel(42)
-    nr_federate__p4_28 = new NetworkReceiver_102()
-    @_tpoLevel(48)
-    nr_federate__p4_29 = new NetworkReceiver_104()
-    @_tpoLevel(50)
-    nr_federate__p4_30 = new NetworkReceiver_106()
     _p4AP_in0 = new _p4AP_in()
     _p4AV_in0 = new _p4AV_in()
     _p4CP_in0 = new _p4CP_in()
     _p4CV_in0 = new _p4CV_in()
-    _p4e1_p1_in0 = new _p4e1_p1_in()
-    _p4e1_p2_in0 = new _p4e1_p2_in()
-    _p4e1_p3_in0 = new _p4e1_p3_in()
-    _p4e1_p1p2_in0 = new _p4e1_p1p2_in()
-    _p4e1_p1p3_in0 = new _p4e1_p1p3_in()
-    _p4e1_p2p1_in0 = new _p4e1_p2p1_in()
-    _p4e1_p2p3_in0 = new _p4e1_p2p3_in()
-    _p4e1_p3p1_in0 = new _p4e1_p3p1_in()
-    _p4e1_p3p2_in0 = new _p4e1_p3p2_in()
-    _p4e2_p1_in0 = new _p4e2_p1_in()
-    _p4e2_p2_in0 = new _p4e2_p2_in()
-    _p4e2_p3_in0 = new _p4e2_p3_in()
-    _p4e2_p1p2_in0 = new _p4e2_p1p2_in()
-    _p4e2_p1p3_in0 = new _p4e2_p1p3_in()
-    _p4e2_p2p1_in0 = new _p4e2_p2p1_in()
-    _p4e2_p2p3_in0 = new _p4e2_p2p3_in()
-    _p4e2_p3p1_in0 = new _p4e2_p3p1_in()
-    _p4e2_p3p2_in0 = new _p4e2_p3p2_in()
-    _p4e3_p1_in0 = new _p4e3_p1_in()
-    _p4e3_p2_in0 = new _p4e3_p2_in()
-    _p4e3_p3_in0 = new _p4e3_p3_in()
-    _p4e3_p1p2_in0 = new _p4e3_p1p2_in()
-    _p4e3_p1p3_in0 = new _p4e3_p1p3_in()
-    _p4e3_p2p1_in0 = new _p4e3_p2p1_in()
-    _p4e3_p2p3_in0 = new _p4e3_p2p3_in()
-    _p4e3_p3p1_in0 = new _p4e3_p3p1_in()
-    _p4e3_p3p2_in0 = new _p4e3_p3p2_in()
     _p4sim_start_time0 = new _p4sim_start_time()
     _p4AP_in0.port -> p4.AP_in
     _p4AV_in0.port -> p4.AV_in
     _p4CP_in0.port -> p4.CP_in
     _p4CV_in0.port -> p4.CV_in
-    _p4e1_p1_in0.port -> p4.e1_p1_in
-    _p4e1_p2_in0.port -> p4.e1_p2_in
-    _p4e1_p3_in0.port -> p4.e1_p3_in
-    _p4e1_p1p2_in0.port -> p4.e1_p1p2_in
-    _p4e1_p1p3_in0.port -> p4.e1_p1p3_in
-    _p4e1_p2p1_in0.port -> p4.e1_p2p1_in
-    _p4e1_p2p3_in0.port -> p4.e1_p2p3_in
-    _p4e1_p3p1_in0.port -> p4.e1_p3p1_in
-    _p4e1_p3p2_in0.port -> p4.e1_p3p2_in
-    _p4e2_p1_in0.port -> p4.e2_p1_in
-    _p4e2_p2_in0.port -> p4.e2_p2_in
-    _p4e2_p3_in0.port -> p4.e2_p3_in
-    _p4e2_p1p2_in0.port -> p4.e2_p1p2_in
-    _p4e2_p1p3_in0.port -> p4.e2_p1p3_in
-    _p4e2_p2p1_in0.port -> p4.e2_p2p1_in
-    _p4e2_p2p3_in0.port -> p4.e2_p2p3_in
-    _p4e2_p3p1_in0.port -> p4.e2_p3p1_in
-    _p4e2_p3p2_in0.port -> p4.e2_p3p2_in
-    _p4e3_p1_in0.port -> p4.e3_p1_in
-    _p4e3_p2_in0.port -> p4.e3_p2_in
-    _p4e3_p3_in0.port -> p4.e3_p3_in
-    _p4e3_p1p2_in0.port -> p4.e3_p1p2_in
-    _p4e3_p1p3_in0.port -> p4.e3_p1p3_in
-    _p4e3_p2p1_in0.port -> p4.e3_p2p1_in
-    _p4e3_p2p3_in0.port -> p4.e3_p2p3_in
-    _p4e3_p3p1_in0.port -> p4.e3_p3p1_in
-    _p4e3_p3p2_in0.port -> p4.e3_p3p2_in
     _p4sim_start_time0.port -> p4.sim_start_time
     nr_federate__p4.msg -> _p4AP_in0.port0
     nr_federate__p4_0.msg -> _p4AV_in0.port0
     nr_federate__p4_1.msg -> _p4CP_in0.port0
     nr_federate__p4_2.msg -> _p4CV_in0.port0
     nr_federate__p4_3.msg -> _p4sim_start_time0.port0
-    nr_federate__p4_4.msg -> _p4e1_p1_in0.port0
-    nr_federate__p4_5.msg -> _p4e1_p1p2_in0.port0
-    nr_federate__p4_6.msg -> _p4e1_p1p3_in0.port0
-    nr_federate__p4_7.msg -> _p4e2_p1_in0.port0
-    nr_federate__p4_8.msg -> _p4e2_p1p2_in0.port0
-    nr_federate__p4_9.msg -> _p4e2_p1p3_in0.port0
-    nr_federate__p4_10.msg -> _p4e3_p1_in0.port0
-    nr_federate__p4_11.msg -> _p4e3_p1p2_in0.port0
-    nr_federate__p4_12.msg -> _p4e3_p1p3_in0.port0
-    nr_federate__p4_13.msg -> _p4e1_p2_in0.port0
-    nr_federate__p4_14.msg -> _p4e1_p2p1_in0.port0
-    nr_federate__p4_15.msg -> _p4e1_p2p3_in0.port0
-    nr_federate__p4_16.msg -> _p4e2_p2_in0.port0
-    nr_federate__p4_17.msg -> _p4e2_p2p1_in0.port0
-    nr_federate__p4_18.msg -> _p4e2_p2p3_in0.port0
-    nr_federate__p4_19.msg -> _p4e3_p2_in0.port0
-    nr_federate__p4_20.msg -> _p4e3_p2p1_in0.port0
-    nr_federate__p4_21.msg -> _p4e3_p2p3_in0.port0
-    nr_federate__p4_22.msg -> _p4e1_p3_in0.port0
-    nr_federate__p4_23.msg -> _p4e1_p3p1_in0.port0
-    nr_federate__p4_24.msg -> _p4e1_p3p2_in0.port0
-    nr_federate__p4_25.msg -> _p4e2_p3_in0.port0
-    nr_federate__p4_26.msg -> _p4e2_p3p1_in0.port0
-    nr_federate__p4_27.msg -> _p4e2_p3p2_in0.port0
-    nr_federate__p4_28.msg -> _p4e3_p3_in0.port0
-    nr_federate__p4_29.msg -> _p4e3_p3p1_in0.port0
-    nr_federate__p4_30.msg -> _p4e3_p3p2_in0.port0
-    p4.e1_round0_out -> ns_federate__p1_22.msg
-    p4.e1_round0_out -> ns_federate__p2_22.msg
-    p4.e1_round0_out -> ns_federate__p3_22.msg
-    p4.e1_p0p1_out -> ns_federate__p2_23.msg
-    p4.e1_p0p1_out -> ns_federate__p3_23.msg
-    p4.e1_p0p2_out -> ns_federate__p1_23.msg
-    p4.e1_p0p2_out -> ns_federate__p3_24.msg
-    p4.e1_p0p3_out -> ns_federate__p1_24.msg
-    p4.e1_p0p3_out -> ns_federate__p2_24.msg
-    p4.e2_round0_out -> ns_federate__p1_25.msg
-    p4.e2_round0_out -> ns_federate__p2_25.msg
-    p4.e2_round0_out -> ns_federate__p3_25.msg
-    p4.e2_p0p1_out -> ns_federate__p2_26.msg
-    p4.e2_p0p1_out -> ns_federate__p3_26.msg
-    p4.e2_p0p2_out -> ns_federate__p1_26.msg
-    p4.e2_p0p2_out -> ns_federate__p3_27.msg
-    p4.e2_p0p3_out -> ns_federate__p1_27.msg
-    p4.e2_p0p3_out -> ns_federate__p2_27.msg
-    p4.e3_round0_out -> ns_federate__p1_28.msg
-    p4.e3_round0_out -> ns_federate__p2_28.msg
-    p4.e3_round0_out -> ns_federate__p3_28.msg
-    p4.e3_p0p1_out -> ns_federate__p2_29.msg
-    p4.e3_p0p1_out -> ns_federate__p3_29.msg
-    p4.e3_p0p2_out -> ns_federate__p1_29.msg
-    p4.e3_p0p2_out -> ns_federate__p3_30.msg
-    p4.e3_p0p3_out -> ns_federate__p1_30.msg
-    p4.e3_p0p3_out -> ns_federate__p2_30.msg
     p4.force -> ns_federate__plant_9.msg
     p4.sim_st -> ns_federate__plant_10.msg
 }

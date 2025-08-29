@@ -3,11 +3,11 @@
 #include "include/federate__p4/published_store.h"
 #include "_published_store.h"
 // *********** From the preamble, verbatim:
-#line 597 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p4.lf"
+#line 625 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p4.lf"
 version vt[MAX_VERSIONS];
 version vi[MAX_VERSIONS];
 version ve[MAX_VERSIONS];
-#line 11 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
+#line 11 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
 
 // *********** End of preamble.
 // ***** Start of method declarations.
@@ -17,7 +17,7 @@ void _published_storereaction_function_0(void* instance_args) {
     _published_store_self_t* self = (_published_store_self_t*)instance_args; SUPPRESS_UNUSED_WARNING(self);
     _published_store_input_globalT_t* input_globalT = self->_lf_input_globalT;
     int input_globalT_width = self->_lf_input_globalT_width; SUPPRESS_UNUSED_WARNING(input_globalT_width);
-    #line 628 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p4.lf"
+    #line 656 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p4.lf"
     version i;
     i.value = self->g_target.value;
     i.time = self->g_target.time;
@@ -26,7 +26,7 @@ void _published_storereaction_function_0(void* instance_args) {
     self->version_T_count++;
     self->g_target = input_globalT->value;
     // self->g_target.time = lf_time_logical_elapsed();
-#line 30 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
+#line 30 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -34,7 +34,7 @@ void _published_storereaction_function_1(void* instance_args) {
     _published_store_self_t* self = (_published_store_self_t*)instance_args; SUPPRESS_UNUSED_WARNING(self);
     _published_store_input_globalI_t* input_globalI = self->_lf_input_globalI;
     int input_globalI_width = self->_lf_input_globalI_width; SUPPRESS_UNUSED_WARNING(input_globalI_width);
-    #line 640 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p4.lf"
+    #line 668 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p4.lf"
     version i;
     i.value = self->global_integral.value;
     i.time = self->global_integral.time;
@@ -43,7 +43,7 @@ void _published_storereaction_function_1(void* instance_args) {
     self->version_I_count++;
     self->global_integral = input_globalI->value;
     // self->global_integral.time = lf_time_logical_elapsed();
-#line 47 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
+#line 47 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -51,7 +51,7 @@ void _published_storereaction_function_2(void* instance_args) {
     _published_store_self_t* self = (_published_store_self_t*)instance_args; SUPPRESS_UNUSED_WARNING(self);
     _published_store_input_globalE_t* input_globalE = self->_lf_input_globalE;
     int input_globalE_width = self->_lf_input_globalE_width; SUPPRESS_UNUSED_WARNING(input_globalE_width);
-    #line 652 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p4.lf"
+    #line 680 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p4.lf"
     version i;
     i.value = self->global_error.value;
     i.time = self->global_error.time;
@@ -60,7 +60,7 @@ void _published_storereaction_function_2(void* instance_args) {
     self->version_E_count++;
     self->global_error = input_globalE->value;
     // self->global_error.time = lf_time_logical_elapsed();
-#line 64 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
+#line 64 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -69,14 +69,18 @@ void _published_storereaction_function_3(void* instance_args) {
     _published_store_request_T_t* request_T = self->_lf_request_T;
     int request_T_width = self->_lf_request_T_width; SUPPRESS_UNUSED_WARNING(request_T_width);
     _published_store_output_globalT_t* output_globalT = &self->_lf_output_globalT;
-    #line 664 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p4.lf"
+    #line 692 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p4.lf"
     // lf_print("request_T = %lld\n", request_T->value);
     if (self->g_target.time <= request_T->value) {
         // lf_print("T:1");
         // if (request_T->value - self->g_target.time > TIME_PERIOD) {
         //     lf_set(output_globalT, -1);
         // } else {
-        lf_set(output_globalT, self->g_target.value);
+        if (request_T->value - self->g_target.time >= TIME_PERIOD * 1000000) {
+            lf_set(output_globalT, -1);
+        } else {
+            lf_set(output_globalT, self->g_target.value);
+        }
         // }
     } else if(vt[self->min_index_T].time > request_T->value || self->version_T_count == 0) {
         // lf_print("T:2");
@@ -93,7 +97,7 @@ void _published_storereaction_function_3(void* instance_args) {
         lf_set(output_globalT, -1);
     }
     // lf_print("Published global target: %f\n", output_globalT->value);
-#line 97 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
+#line 101 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -102,15 +106,18 @@ void _published_storereaction_function_4(void* instance_args) {
     _published_store_request_I_t* request_I = self->_lf_request_I;
     int request_I_width = self->_lf_request_I_width; SUPPRESS_UNUSED_WARNING(request_I_width);
     _published_store_output_globalI_t* output_globalI = &self->_lf_output_globalI;
-    #line 691 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p4.lf"
+    #line 723 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p4.lf"
     if (self->global_integral.time <= request_I->value) {
         // lf_print("I:1");
         // lf_print("Publishing global integral: %lld\n", self->global_integral.value);
         // if (request_I->value - self->global_integral.time > TIME_PERIOD) {
         //     lf_set(output_globalI, -1);
         // } else {
-        lf_set(output_globalI, self->global_integral.value);
-        // }
+        if (request_I->value - self->global_integral.time >= TIME_PERIOD * 1000000) {
+            lf_set(output_globalI, -1);
+        } else {
+            lf_set(output_globalI, self->global_integral.value);
+        }
     } else if(vi[self->min_index_I].time > request_I->value || self->version_I_count == 0) {
         // lf_print("I:2");
         lf_request_stop();
@@ -129,7 +136,7 @@ void _published_storereaction_function_4(void* instance_args) {
         lf_set(output_globalI, -1);
     }
     // lf_print("Published global integral: %f\n", output_globalI->value);
-#line 133 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
+#line 140 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -138,7 +145,7 @@ void _published_storereaction_function_5(void* instance_args) {
     _published_store_request_E_t* request_E = self->_lf_request_E;
     int request_E_width = self->_lf_request_E_width; SUPPRESS_UNUSED_WARNING(request_E_width);
     _published_store_output_globalE_t* output_globalE = &self->_lf_output_globalE;
-    #line 721 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p4.lf"
+    #line 756 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p4.lf"
     // lf_print("request_E = %lld\n", request_E->value);
     if (self->global_error.time <= request_E->value) {
         // lf_print("E:1");
@@ -147,7 +154,11 @@ void _published_storereaction_function_5(void* instance_args) {
         // if (request_E->value - self->global_error.time > TIME_PERIOD) {
         //     lf_set(output_globalE, -1);
         // } else {
-        lf_set(output_globalE, self->global_error.value);
+        if (request_E->value - self->global_error.time >= TIME_PERIOD * 1000000) {
+            lf_set(output_globalE, -1);
+        } else {
+            lf_set(output_globalE, self->global_error.value);
+        }
         // }
     } else if(ve[self->min_index_E].time > request_E->value || self->version_E_count == 0) {
         // lf_print("E:2");
@@ -166,19 +177,19 @@ void _published_storereaction_function_5(void* instance_args) {
         lf_set(output_globalE, -1);
     }
     // lf_print("Published global error: %f\n", output_globalE->value);
-#line 170 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
+#line 181 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
 void _published_storereaction_function_6(void* instance_args) {
     _published_store_self_t* self = (_published_store_self_t*)instance_args; SUPPRESS_UNUSED_WARNING(self);
     
-    #line 752 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p4.lf"
+    #line 791 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p4.lf"
     lf_print("Shutting down due to unwanted condition.\n");
       if (_csv) {
           fclose(_csv);
       }
-#line 182 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
+#line 193 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p4/_published_store.c"
 }
 #include "include/api/reaction_macros_undef.h"
 _published_store_self_t* new__published_store() {

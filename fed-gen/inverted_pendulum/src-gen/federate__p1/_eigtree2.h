@@ -1,8 +1,8 @@
 #ifndef _EIGTREE2_H
 #define _EIGTREE2_H
 #include "include/core/reactor.h"
-#ifndef TOP_LEVEL_PREAMBLE_1697125968_H
-#define TOP_LEVEL_PREAMBLE_1697125968_H
+#ifndef TOP_LEVEL_PREAMBLE_1013607482_H
+#define TOP_LEVEL_PREAMBLE_1013607482_H
 typedef struct {
     char key[32 + 1];
     double value;
@@ -94,9 +94,8 @@ static int cmp_double(const void *a, const void *b) {
 
 #define sqr(x) ((x)*(x))
 #define MAX_VERSIONS 20
-#define PUBLISHING_INTERVAL 10000000
 #define TIMESTEP 0.05
-#define TIME_PERIOD 10
+#define TIME_PERIOD 800
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -282,8 +281,8 @@ typedef struct {
 } _eigtree2_p0p3p2_out_t;
 typedef struct {
     struct self_base_t base;
-#line 286 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p1/_eigtree2.h"
-#line 287 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p1/_eigtree2.h"
+#line 285 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p1/_eigtree2.h"
+#line 286 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p1/_eigtree2.h"
     _eigtree2_p1p2_in_t* _lf_p1p2_in;
     // width of -2 indicates that it is not a multiport.
     int _lf_p1p2_in_width;

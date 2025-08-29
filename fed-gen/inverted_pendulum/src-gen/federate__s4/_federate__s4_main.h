@@ -6,32 +6,18 @@
 #include "_networksender_1_1.h"
 #include "__s4av_in.h"
 #include "_networksender_2_2.h"
-#include "_networkreceiver_154.h"
 #include "_sensor.h"
-#include "_networkreceiver_153.h"
-#include "_networkreceiver_152.h"
 #include "_networksender_0_0.h"
+#include "_networkreceiver_47.h"
 #include "__s4cp_in.h"
-#include "_networkreceiver_155.h"
+#include "_networkreceiver_44.h"
+#include "_networkreceiver_46.h"
+#include "_networkreceiver_45.h"
 #include "__s4cv_in.h"
 #include "__s4ap_in.h"
 #include "_networksender_5_5.h"
-#ifndef TOP_LEVEL_PREAMBLE_1706315611_H
-#define TOP_LEVEL_PREAMBLE_1706315611_H
-#ifdef __cplusplus
-extern "C" {
-#endif
-#include "core/federated/federate.h"
-#include "core/federated/network/net_common.h"
-#include "core/federated/network/net_util.h"
-#include "core/federated/network/socket_common.h"
-#include "core/federated/clock-sync.h"
-#include "core/threaded/reactor_threaded.h"
-#include "core/utils/util.h"
-extern federate_instance_t _fed;
-#ifdef __cplusplus
-}
-#endif
+#ifndef TOP_LEVEL_PREAMBLE_865155840_H
+#define TOP_LEVEL_PREAMBLE_865155840_H
 typedef struct {
     char key[32 + 1];
     double value;
@@ -123,14 +109,27 @@ static int cmp_double(const void *a, const void *b) {
 
 #define sqr(x) ((x)*(x))
 #define MAX_VERSIONS 20
-#define PUBLISHING_INTERVAL 10000000
 #define TIMESTEP 0.05
-#define TIME_PERIOD 10
+#define TIME_PERIOD 800
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "core/federated/federate.h"
+#include "core/federated/network/net_common.h"
+#include "core/federated/network/net_util.h"
+#include "core/federated/network/socket_common.h"
+#include "core/federated/clock-sync.h"
+#include "core/threaded/reactor_threaded.h"
+#include "core/utils/util.h"
+extern federate_instance_t _fed;
+#ifdef __cplusplus
+}
+#endif
 #endif
 typedef struct {
     struct self_base_t base;
-#line 133 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__s4/_federate__s4_main.h"
-#line 134 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__s4/_federate__s4_main.h"
+#line 132 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__s4/_federate__s4_main.h"
+#line 133 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__s4/_federate__s4_main.h"
 } _federate__s4_main_main_self_t;
 _federate__s4_main_main_self_t* new__federate__s4_main();
 #endif // _FEDERATE__S4_MAIN_H

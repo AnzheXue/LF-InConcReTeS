@@ -9,11 +9,11 @@ void _eigtreereaction_function_0(void* instance_args) {
     _eigtree_self_t* self = (_eigtree_self_t*)instance_args; SUPPRESS_UNUSED_WARNING(self);
     _eigtree_store_in_t* store_in = self->_lf_store_in;
     int store_in_width = self->_lf_store_in_width; SUPPRESS_UNUSED_WARNING(store_in_width);
-    #line 1053 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p3.lf"
+    #line 1117 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p3.lf"
     self->start_time = lf_time_physical_elapsed();
-    self->logical_start_time = lf_time_logical_elapsed();
+    // self->logical_start_time = lf_time_logical_elapsed();
     // lf_print("EIGtree started at: %lld\n", self->start_time);
-#line 17 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p3/_eigtree.c"
+#line 17 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p3/_eigtree.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -21,9 +21,9 @@ void _eigtreereaction_function_1(void* instance_args) {
     _eigtree_self_t* self = (_eigtree_self_t*)instance_args; SUPPRESS_UNUSED_WARNING(self);
     _eigtree_sr_t* sr = self->_lf_sr;
     int sr_width = self->_lf_sr_width; SUPPRESS_UNUSED_WARNING(sr_width);
-    #line 1060 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p3.lf"
+    #line 1124 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p3.lf"
     self->successful_reads = sr->value;
-#line 27 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p3/_eigtree.c"
+#line 27 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p3/_eigtree.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -31,9 +31,9 @@ void _eigtreereaction_function_2(void* instance_args) {
     _eigtree_self_t* self = (_eigtree_self_t*)instance_args; SUPPRESS_UNUSED_WARNING(self);
     _eigtree_tr_t* tr = self->_lf_tr;
     int tr_width = self->_lf_tr_width; SUPPRESS_UNUSED_WARNING(tr_width);
-    #line 1065 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p3.lf"
+    #line 1129 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p3.lf"
     self->total_reads = tr->value;
-#line 37 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p3/_eigtree.c"
+#line 37 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p3/_eigtree.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -41,9 +41,9 @@ void _eigtreereaction_function_3(void* instance_args) {
     _eigtree_self_t* self = (_eigtree_self_t*)instance_args; SUPPRESS_UNUSED_WARNING(self);
     _eigtree_sw_t* sw = self->_lf_sw;
     int sw_width = self->_lf_sw_width; SUPPRESS_UNUSED_WARNING(sw_width);
-    #line 1070 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p3.lf"
+    #line 1134 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p3.lf"
     self->successful_writes = sw->value;
-#line 47 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p3/_eigtree.c"
+#line 47 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p3/_eigtree.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -51,9 +51,9 @@ void _eigtreereaction_function_4(void* instance_args) {
     _eigtree_self_t* self = (_eigtree_self_t*)instance_args; SUPPRESS_UNUSED_WARNING(self);
     _eigtree_tw_t* tw = self->_lf_tw;
     int tw_width = self->_lf_tw_width; SUPPRESS_UNUSED_WARNING(tw_width);
-    #line 1075 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p3.lf"
+    #line 1139 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p3.lf"
     self->total_writes = tw->value;
-#line 57 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p3/_eigtree.c"
+#line 57 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p3/_eigtree.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -64,9 +64,9 @@ void _eigtreereaction_function_5(void* instance_args) {
     
     } etr;
     etr.final_out = self->_lf_etr.final_out;
-    #line 1080 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p3.lf"
+    #line 1144 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p3.lf"
     self->end_time = lf_time_physical_elapsed();
-    self->logical_end_time = lf_time_logical_elapsed();
+    // self->logical_end_time = lf_time_logical_elapsed();
     // lf_print("KVSLatency_ms: %lld\n", (self->end_time - self->start_time) / 1000000);
     long long delta = (self->end_time - self->start_time) / 1000000;
     if (delta > 5) {
@@ -76,7 +76,7 @@ void _eigtreereaction_function_5(void* instance_args) {
     log_raw("KVS", 50, delta, self->successful_reads, self->total_reads,
             self->successful_writes, self->total_writes);
     // lf_print("EIGtree ended at: %lld\n", self->end_time);
-#line 80 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p3/_eigtree.c"
+#line 80 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p3/_eigtree.c"
 }
 #include "include/api/reaction_macros_undef.h"
 _eigtree_self_t* new__eigtree() {

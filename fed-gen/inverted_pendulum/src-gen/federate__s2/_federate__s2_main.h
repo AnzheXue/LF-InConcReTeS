@@ -10,14 +10,14 @@
 #include "__s2ap_in.h"
 #include "_networksender_0_0.h"
 #include "__s2cv_in.h"
+#include "_networkreceiver_37.h"
+#include "_networkreceiver_36.h"
 #include "__s2av_in.h"
-#include "_networkreceiver_147.h"
-#include "_networkreceiver_146.h"
-#include "_networkreceiver_145.h"
-#include "_networkreceiver_144.h"
+#include "_networkreceiver_39.h"
+#include "_networkreceiver_38.h"
 #include "_networksender_5_5.h"
-#ifndef TOP_LEVEL_PREAMBLE_1376769350_H
-#define TOP_LEVEL_PREAMBLE_1376769350_H
+#ifndef TOP_LEVEL_PREAMBLE_652209987_H
+#define TOP_LEVEL_PREAMBLE_652209987_H
 typedef struct {
     char key[32 + 1];
     double value;
@@ -109,9 +109,8 @@ static int cmp_double(const void *a, const void *b) {
 
 #define sqr(x) ((x)*(x))
 #define MAX_VERSIONS 20
-#define PUBLISHING_INTERVAL 10000000
 #define TIMESTEP 0.05
-#define TIME_PERIOD 10
+#define TIME_PERIOD 800
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -129,8 +128,8 @@ extern federate_instance_t _fed;
 #endif
 typedef struct {
     struct self_base_t base;
-#line 133 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__s2/_federate__s2_main.h"
-#line 134 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__s2/_federate__s2_main.h"
+#line 132 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__s2/_federate__s2_main.h"
+#line 133 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__s2/_federate__s2_main.h"
 } _federate__s2_main_main_self_t;
 _federate__s2_main_main_self_t* new__federate__s2_main();
 #endif // _FEDERATE__S2_MAIN_H

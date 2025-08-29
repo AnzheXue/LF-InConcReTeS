@@ -1,8 +1,8 @@
 #ifndef _NETWORKRECEIVER_5_H
 #define _NETWORKRECEIVER_5_H
 #include "include/core/reactor.h"
-#ifndef TOP_LEVEL_PREAMBLE_1697125968_H
-#define TOP_LEVEL_PREAMBLE_1697125968_H
+#ifndef TOP_LEVEL_PREAMBLE_1013607482_H
+#define TOP_LEVEL_PREAMBLE_1013607482_H
 typedef struct {
     char key[32 + 1];
     double value;
@@ -94,9 +94,8 @@ static int cmp_double(const void *a, const void *b) {
 
 #define sqr(x) ((x)*(x))
 #define MAX_VERSIONS 20
-#define PUBLISHING_INTERVAL 10000000
 #define TIMESTEP 0.05
-#define TIME_PERIOD 10
+#define TIME_PERIOD 800
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -145,8 +144,8 @@ typedef struct {
 } _networkreceiver_5_networkMessage_t;
 typedef struct {
     struct self_base_t base;
-#line 149 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p1/_networkreceiver_5.h"
-#line 150 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p1/_networkreceiver_5.h"
+#line 148 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p1/_networkreceiver_5.h"
+#line 149 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p1/_networkreceiver_5.h"
     _networkreceiver_5_networkMessage_t _lf_networkMessage;
     _networkreceiver_5_msg_t _lf_msg;
     int _lf_msg_width;

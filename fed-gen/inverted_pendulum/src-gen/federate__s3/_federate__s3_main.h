@@ -8,16 +8,30 @@
 #include "__s3ap_in.h"
 #include "_networksender_2_2.h"
 #include "__s3cp_in.h"
+#include "_networkreceiver_40.h"
 #include "_sensor.h"
+#include "_networkreceiver_42.h"
 #include "_networksender_0_0.h"
-#include "_networkreceiver_151.h"
-#include "_networkreceiver_150.h"
-#include "_networkreceiver_149.h"
-#include "_networkreceiver_148.h"
+#include "_networkreceiver_41.h"
+#include "_networkreceiver_43.h"
 #include "__s3av_in.h"
 #include "_networksender_5_5.h"
-#ifndef TOP_LEVEL_PREAMBLE_1562369613_H
-#define TOP_LEVEL_PREAMBLE_1562369613_H
+#ifndef TOP_LEVEL_PREAMBLE_1465834149_H
+#define TOP_LEVEL_PREAMBLE_1465834149_H
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "core/federated/federate.h"
+#include "core/federated/network/net_common.h"
+#include "core/federated/network/net_util.h"
+#include "core/federated/network/socket_common.h"
+#include "core/federated/clock-sync.h"
+#include "core/threaded/reactor_threaded.h"
+#include "core/utils/util.h"
+extern federate_instance_t _fed;
+#ifdef __cplusplus
+}
+#endif
 typedef struct {
     char key[32 + 1];
     double value;
@@ -109,28 +123,13 @@ static int cmp_double(const void *a, const void *b) {
 
 #define sqr(x) ((x)*(x))
 #define MAX_VERSIONS 20
-#define PUBLISHING_INTERVAL 10000000
 #define TIMESTEP 0.05
-#define TIME_PERIOD 10
-#ifdef __cplusplus
-extern "C" {
-#endif
-#include "core/federated/federate.h"
-#include "core/federated/network/net_common.h"
-#include "core/federated/network/net_util.h"
-#include "core/federated/network/socket_common.h"
-#include "core/federated/clock-sync.h"
-#include "core/threaded/reactor_threaded.h"
-#include "core/utils/util.h"
-extern federate_instance_t _fed;
-#ifdef __cplusplus
-}
-#endif
+#define TIME_PERIOD 800
 #endif
 typedef struct {
     struct self_base_t base;
-#line 133 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__s3/_federate__s3_main.h"
-#line 134 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__s3/_federate__s3_main.h"
+#line 132 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__s3/_federate__s3_main.h"
+#line 133 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__s3/_federate__s3_main.h"
 } _federate__s3_main_main_self_t;
 _federate__s3_main_main_self_t* new__federate__s3_main();
 #endif // _FEDERATE__S3_MAIN_H

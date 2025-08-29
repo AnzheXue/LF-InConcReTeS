@@ -109,9 +109,8 @@ static int cmp_double(const void *a, const void *b) {
 
 #define sqr(x) ((x)*(x))
 #define MAX_VERSIONS 20
-#define PUBLISHING_INTERVAL 10000000
 #define TIMESTEP 0.05
-#define TIME_PERIOD 10
+#define TIME_PERIOD 800
 =}
 preamble {=
 #ifdef __cplusplus
@@ -406,6 +405,35 @@ reactor plant {
   s = new plant_sensor()
   a = new plant_actuator()
 
+  // sim_st_p1 -> a.sim_st_p1;
+  // sim_st_p2 -> a.sim_st_p2;
+  // sim_st_p3 -> a.sim_st_p3;
+  // sim_st_p4 -> a.sim_st_p4;
+  // request_s1 -> s.request_s1;
+  // request_s2 -> s.request_s2;
+  // request_s3 -> s.request_s3;
+  // request_s4 -> s.request_s4;
+  // s.AP_out -> s1_AP_out;
+  // s.AV_out -> s1_AV_out;
+  // s.CP_out -> s1_CP_out;
+  // s.CV_out -> s1_CV_out;
+  // s.AP_out -> s2_AP_out;
+  // s.AV_out -> s2_AV_out;
+  // s.CP_out -> s2_CP_out;
+  // s.CV_out -> s2_CV_out;
+  // s.AP_out -> s3_AP_out;
+  // s.AV_out -> s3_AV_out;
+  // s.CP_out -> s3_CP_out;
+  // s.CV_out -> s3_CV_out;
+  // s.AP_out -> s4_AP_out;
+  // s.AV_out -> s4_AV_out;
+  // s.CP_out -> s4_CP_out;
+  // s.CV_out -> s4_CV_out;
+  // a1_force -> a.a1_force;
+  // a2_force -> a.a2_force;
+  // a3_force -> a.a3_force;
+  // a4_force -> a.a4_force;
+  // a.CF_force -> s.CF_in after 0 ms;
   sim_st_p1 -> a.sim_st_p1
   sim_st_p2 -> a.sim_st_p2
   sim_st_p3 -> a.sim_st_p3
@@ -572,7 +600,7 @@ reactor NetworkReceiver_22 {
   =}
 }
 @_network_receiver
-reactor NetworkReceiver_51 {
+reactor NetworkReceiver_24 {
   output msg: double
 
   logical action networkMessage: double
@@ -583,7 +611,7 @@ reactor NetworkReceiver_51 {
   =}
 }
 @_network_receiver
-reactor NetworkReceiver_52 {
+reactor NetworkReceiver_25 {
   output msg: time
 
   logical action networkMessage: time
@@ -594,7 +622,7 @@ reactor NetworkReceiver_52 {
   =}
 }
 @_network_receiver
-reactor NetworkReceiver_80 {
+reactor NetworkReceiver_26 {
   output msg: double
 
   logical action networkMessage: double
@@ -605,7 +633,7 @@ reactor NetworkReceiver_80 {
   =}
 }
 @_network_receiver
-reactor NetworkReceiver_81 {
+reactor NetworkReceiver_27 {
   output msg: time
 
   logical action networkMessage: time
@@ -616,7 +644,7 @@ reactor NetworkReceiver_81 {
   =}
 }
 @_network_receiver
-reactor NetworkReceiver_109 {
+reactor NetworkReceiver_28 {
   output msg: double
 
   logical action networkMessage: double
@@ -627,7 +655,7 @@ reactor NetworkReceiver_109 {
   =}
 }
 @_network_receiver
-reactor NetworkReceiver_110 {
+reactor NetworkReceiver_29 {
   output msg: time
 
   logical action networkMessage: time
@@ -638,7 +666,7 @@ reactor NetworkReceiver_110 {
   =}
 }
 @_network_receiver
-reactor NetworkReceiver_138 {
+reactor NetworkReceiver_30 {
   output msg: double
 
   logical action networkMessage: double
@@ -649,7 +677,7 @@ reactor NetworkReceiver_138 {
   =}
 }
 @_network_receiver
-reactor NetworkReceiver_139 {
+reactor NetworkReceiver_31 {
   output msg: time
 
   logical action networkMessage: time
@@ -1237,21 +1265,21 @@ main reactor  {
     @_tpoLevel(2)
     nr_federate__plant_2 = new NetworkReceiver_22()
     @_tpoLevel(36)
-    nr_federate__plant_3 = new NetworkReceiver_51()
+    nr_federate__plant_3 = new NetworkReceiver_24()
     @_tpoLevel(4)
-    nr_federate__plant_4 = new NetworkReceiver_52()
+    nr_federate__plant_4 = new NetworkReceiver_25()
     @_tpoLevel(36)
-    nr_federate__plant_5 = new NetworkReceiver_80()
+    nr_federate__plant_5 = new NetworkReceiver_26()
     @_tpoLevel(6)
-    nr_federate__plant_6 = new NetworkReceiver_81()
+    nr_federate__plant_6 = new NetworkReceiver_27()
     @_tpoLevel(36)
-    nr_federate__plant_7 = new NetworkReceiver_109()
+    nr_federate__plant_7 = new NetworkReceiver_28()
     @_tpoLevel(8)
-    nr_federate__plant_8 = new NetworkReceiver_110()
+    nr_federate__plant_8 = new NetworkReceiver_29()
     @_tpoLevel(36)
-    nr_federate__plant_9 = new NetworkReceiver_138()
+    nr_federate__plant_9 = new NetworkReceiver_30()
     @_tpoLevel(10)
-    nr_federate__plant_10 = new NetworkReceiver_139()
+    nr_federate__plant_10 = new NetworkReceiver_31()
     _planta1_force0 = new _planta1_force()
     _planta2_force0 = new _planta2_force()
     _planta3_force0 = new _planta3_force()

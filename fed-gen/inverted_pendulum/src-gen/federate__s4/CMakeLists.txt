@@ -73,10 +73,10 @@ add_executable(
     _networksender_3_3.c
     _networksender_4_4.c
     _networksender_5_5.c
-    _networkreceiver_152.c
-    _networkreceiver_153.c
-    _networkreceiver_154.c
-    _networkreceiver_155.c
+    _networkreceiver_44.c
+    _networkreceiver_45.c
+    _networkreceiver_46.c
+    _networkreceiver_47.c
     __s4ap_in.c
     __s4av_in.c
     __s4cp_in.c

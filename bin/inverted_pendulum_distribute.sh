@@ -8,7 +8,7 @@ ssh 10.34.167.169 '\
     echo "------Build of inverted_pendulum RTI" >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log; \
     date >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log;
 '
-pushd /mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen > /dev/null
+pushd /mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen > /dev/null
 echo "**** Bundling source files into RTI.tar.gz"
 tar -czf RTI.tar.gz --exclude build RTI
 echo "**** Copying tarfile to host 10.34.167.169"
@@ -28,7 +28,7 @@ ssh 10.34.167.170 '\
     echo "------Build of inverted_pendulum federate__s1" >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log; \
     date >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log;
 '
-pushd /mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen > /dev/null
+pushd /mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen > /dev/null
 echo "**** Bundling source files into federate__s1.tar.gz"
 tar -czf federate__s1.tar.gz --exclude build federate__s1
 echo "**** Copying tarfile to host 10.34.167.170"
@@ -48,7 +48,7 @@ ssh 10.34.167.171 '\
     echo "------Build of inverted_pendulum federate__s2" >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log; \
     date >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log;
 '
-pushd /mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen > /dev/null
+pushd /mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen > /dev/null
 echo "**** Bundling source files into federate__s2.tar.gz"
 tar -czf federate__s2.tar.gz --exclude build federate__s2
 echo "**** Copying tarfile to host 10.34.167.171"
@@ -68,7 +68,7 @@ ssh 10.34.167.172 '\
     echo "------Build of inverted_pendulum federate__s3" >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log; \
     date >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log;
 '
-pushd /mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen > /dev/null
+pushd /mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen > /dev/null
 echo "**** Bundling source files into federate__s3.tar.gz"
 tar -czf federate__s3.tar.gz --exclude build federate__s3
 echo "**** Copying tarfile to host 10.34.167.172"
@@ -88,7 +88,7 @@ ssh 10.34.167.173 '\
     echo "------Build of inverted_pendulum federate__s4" >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log; \
     date >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log;
 '
-pushd /mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen > /dev/null
+pushd /mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen > /dev/null
 echo "**** Bundling source files into federate__s4.tar.gz"
 tar -czf federate__s4.tar.gz --exclude build federate__s4
 echo "**** Copying tarfile to host 10.34.167.173"
@@ -108,7 +108,7 @@ ssh 10.34.167.170 '\
     echo "------Build of inverted_pendulum federate__p1" >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log; \
     date >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log;
 '
-pushd /mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen > /dev/null
+pushd /mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen > /dev/null
 echo "**** Bundling source files into federate__p1.tar.gz"
 tar -czf federate__p1.tar.gz --exclude build federate__p1
 echo "**** Copying tarfile to host 10.34.167.170"
@@ -128,7 +128,7 @@ ssh 10.34.167.171 '\
     echo "------Build of inverted_pendulum federate__p2" >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log; \
     date >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log;
 '
-pushd /mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen > /dev/null
+pushd /mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen > /dev/null
 echo "**** Bundling source files into federate__p2.tar.gz"
 tar -czf federate__p2.tar.gz --exclude build federate__p2
 echo "**** Copying tarfile to host 10.34.167.171"
@@ -148,7 +148,7 @@ ssh 10.34.167.172 '\
     echo "------Build of inverted_pendulum federate__p3" >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log; \
     date >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log;
 '
-pushd /mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen > /dev/null
+pushd /mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen > /dev/null
 echo "**** Bundling source files into federate__p3.tar.gz"
 tar -czf federate__p3.tar.gz --exclude build federate__p3
 echo "**** Copying tarfile to host 10.34.167.172"
@@ -168,7 +168,7 @@ ssh 10.34.167.173 '\
     echo "------Build of inverted_pendulum federate__p4" >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log; \
     date >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log;
 '
-pushd /mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen > /dev/null
+pushd /mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen > /dev/null
 echo "**** Bundling source files into federate__p4.tar.gz"
 tar -czf federate__p4.tar.gz --exclude build federate__p4
 echo "**** Copying tarfile to host 10.34.167.173"
@@ -188,7 +188,7 @@ ssh 10.34.167.169 '\
     echo "------Build of inverted_pendulum federate__plant" >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log; \
     date >> ~/LinguaFrancaRemote/inverted_pendulum/log/build.log;
 '
-pushd /mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen > /dev/null
+pushd /mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen > /dev/null
 echo "**** Bundling source files into federate__plant.tar.gz"
 tar -czf federate__plant.tar.gz --exclude build federate__plant
 echo "**** Copying tarfile to host 10.34.167.169"

@@ -1,8 +1,8 @@
 #ifndef _WRITER_H
 #define _WRITER_H
 #include "include/core/reactor.h"
-#ifndef TOP_LEVEL_PREAMBLE_1697125968_H
-#define TOP_LEVEL_PREAMBLE_1697125968_H
+#ifndef TOP_LEVEL_PREAMBLE_1013607482_H
+#define TOP_LEVEL_PREAMBLE_1013607482_H
 typedef struct {
     char key[32 + 1];
     double value;
@@ -94,9 +94,8 @@ static int cmp_double(const void *a, const void *b) {
 
 #define sqr(x) ((x)*(x))
 #define MAX_VERSIONS 20
-#define PUBLISHING_INTERVAL 10000000
 #define TIMESTEP 0.05
-#define TIME_PERIOD 10
+#define TIME_PERIOD 800
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -240,8 +239,8 @@ typedef struct {
 } _writer_tw_t;
 typedef struct {
     struct self_base_t base;
-#line 244 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p1/_writer.h"
-#line 245 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p1/_writer.h"
+#line 243 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p1/_writer.h"
+#line 244 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p1/_writer.h"
     _writer_error_t* _lf_error;
     // width of -2 indicates that it is not a multiport.
     int _lf_error_width;

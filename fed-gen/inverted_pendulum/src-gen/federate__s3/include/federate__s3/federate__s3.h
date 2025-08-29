@@ -1,9 +1,23 @@
 #ifndef _federate__s3_main_H
 #define _federate__s3_main_H
 #ifndef _FEDERATE__S3_MAIN_H // necessary for arduino-cli, which automatically includes headers that are not used
-#ifndef TOP_LEVEL_PREAMBLE_1562369613_H
-#define TOP_LEVEL_PREAMBLE_1562369613_H
-/*Correspondence: Range: [(25, 0), (118, 22)) -> Range: [(0, 0), (93, 22)) (verbatim=true; src=/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__s3.lf)*/typedef struct {
+#ifndef TOP_LEVEL_PREAMBLE_1465834149_H
+#define TOP_LEVEL_PREAMBLE_1465834149_H
+/*Correspondence: Range: [(120, 0), (133, 6)) -> Range: [(0, 0), (13, 6)) (verbatim=true; src=/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__s3.lf)*/#ifdef __cplusplus
+extern "C" {
+#endif
+#include "core/federated/federate.h"
+#include "core/federated/network/net_common.h"
+#include "core/federated/network/net_util.h"
+#include "core/federated/network/socket_common.h"
+#include "core/federated/clock-sync.h"
+#include "core/threaded/reactor_threaded.h"
+#include "core/utils/util.h"
+extern federate_instance_t _fed;
+#ifdef __cplusplus
+}
+#endif
+/*Correspondence: Range: [(25, 0), (117, 23)) -> Range: [(0, 0), (92, 23)) (verbatim=true; src=/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__s3.lf)*/typedef struct {
     char key[32 + 1];
     double value;
     uint64_t time;
@@ -94,23 +108,8 @@ static int cmp_double(const void *a, const void *b) {
 
 #define sqr(x) ((x)*(x))
 #define MAX_VERSIONS 20
-#define PUBLISHING_INTERVAL 10000000
 #define TIMESTEP 0.05
-#define TIME_PERIOD 10
-/*Correspondence: Range: [(121, 0), (134, 6)) -> Range: [(0, 0), (13, 6)) (verbatim=true; src=/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__s3.lf)*/#ifdef __cplusplus
-extern "C" {
-#endif
-#include "core/federated/federate.h"
-#include "core/federated/network/net_common.h"
-#include "core/federated/network/net_util.h"
-#include "core/federated/network/socket_common.h"
-#include "core/federated/clock-sync.h"
-#include "core/threaded/reactor_threaded.h"
-#include "core/utils/util.h"
-extern federate_instance_t _fed;
-#ifdef __cplusplus
-}
-#endif
+#define TIME_PERIOD 800
 #endif
 #ifdef __cplusplus
 extern "C" {
@@ -276,7 +275,7 @@ typedef struct {
     lf_port_internal_t _base;
     double value;
 
-} networkreceiver_148_msg_t;
+} networkreceiver_40_msg_t;
 typedef struct {
     token_type_t type;
     lf_token_t* token;
@@ -285,7 +284,7 @@ typedef struct {
     lf_port_internal_t _base;
     double value;
 
-} networkreceiver_149_msg_t;
+} networkreceiver_41_msg_t;
 typedef struct {
     token_type_t type;
     lf_token_t* token;
@@ -294,7 +293,7 @@ typedef struct {
     lf_port_internal_t _base;
     double value;
 
-} networkreceiver_150_msg_t;
+} networkreceiver_42_msg_t;
 typedef struct {
     token_type_t type;
     lf_token_t* token;
@@ -303,7 +302,7 @@ typedef struct {
     lf_port_internal_t _base;
     double value;
 
-} networkreceiver_151_msg_t;
+} networkreceiver_43_msg_t;
 typedef struct {
     token_type_t type;
     lf_token_t* token;

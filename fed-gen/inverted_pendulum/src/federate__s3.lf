@@ -114,9 +114,8 @@ static int cmp_double(const void *a, const void *b) {
 
 #define sqr(x) ((x)*(x))
 #define MAX_VERSIONS 20
-#define PUBLISHING_INTERVAL 10000000
 #define TIMESTEP 0.05
-#define TIME_PERIOD 10
+#define TIME_PERIOD 800
 =}
 preamble {=
 #ifdef __cplusplus
@@ -141,7 +140,7 @@ extern federate_instance_t _fed;
 //   #include "common_types.h"
 // =}
 reactor Sensor {
-  timer t(0, 10 ms)
+  timer t(0, 800 ms)
 
   input AP_in: double
   input AV_in: double
@@ -417,7 +416,7 @@ reactor NetworkSender_5<SENDERINDEXPARAMETER> {
   =}
 }
 @_network_receiver
-reactor NetworkReceiver_148 {
+reactor NetworkReceiver_40 {
   output msg: double
 
   logical action networkMessage: double
@@ -428,7 +427,7 @@ reactor NetworkReceiver_148 {
   =}
 }
 @_network_receiver
-reactor NetworkReceiver_149 {
+reactor NetworkReceiver_41 {
   output msg: double
 
   logical action networkMessage: double
@@ -439,7 +438,7 @@ reactor NetworkReceiver_149 {
   =}
 }
 @_network_receiver
-reactor NetworkReceiver_150 {
+reactor NetworkReceiver_42 {
   output msg: double
 
   logical action networkMessage: double
@@ -450,7 +449,7 @@ reactor NetworkReceiver_150 {
   =}
 }
 @_network_receiver
-reactor NetworkReceiver_151 {
+reactor NetworkReceiver_43 {
   output msg: double
 
   logical action networkMessage: double
@@ -482,13 +481,13 @@ main reactor  {
     @_tpoLevel(1)
     ns_federate__p3_3 = new NetworkSender_5<{= 5 =}>()
     @_tpoLevel(4)
-    nr_federate__s3 = new NetworkReceiver_148()
+    nr_federate__s3 = new NetworkReceiver_40()
     @_tpoLevel(6)
-    nr_federate__s3_0 = new NetworkReceiver_149()
+    nr_federate__s3_0 = new NetworkReceiver_41()
     @_tpoLevel(8)
-    nr_federate__s3_1 = new NetworkReceiver_150()
+    nr_federate__s3_1 = new NetworkReceiver_42()
     @_tpoLevel(10)
-    nr_federate__s3_2 = new NetworkReceiver_151()
+    nr_federate__s3_2 = new NetworkReceiver_43()
     _s3AP_in0 = new _s3AP_in()
     _s3AV_in0 = new _s3AV_in()
     _s3CP_in0 = new _s3CP_in()

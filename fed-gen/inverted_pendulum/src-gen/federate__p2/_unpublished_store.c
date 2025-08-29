@@ -11,19 +11,19 @@ void _unpublished_storereaction_function_0(void* instance_args) {
     int error_width = self->_lf_error_width; SUPPRESS_UNUSED_WARNING(error_width);
     _unpublished_store_output_error_t* output_error = &self->_lf_output_error;
     _unpublished_store_sw_t* sw = &self->_lf_sw;
-    #line 507 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p2.lf"
+    #line 535 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p2.lf"
     // stored_error = error -> value;
     tuple t;
     strncpy(t.key, "error", sizeof(t.key));
     t.value = error -> value;
-    t.time = lf_time_physical_elapsed();
+    t.time = lf_time_logical_elapsed() + TIME_PERIOD * 1000000;
     lf_set(output_error, t);
     add_successful_writes(1);
     // lf_print("successful_writes: %d\n", successful_writes);
     lf_set(sw, successful_writes);
     // stored_error = t; // Store the value in state
     // lf_print("Stored error: %f\n", output_error->value.value);
-#line 27 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p2/_unpublished_store.c"
+#line 27 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p2/_unpublished_store.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -33,19 +33,19 @@ void _unpublished_storereaction_function_1(void* instance_args) {
     int integral_width = self->_lf_integral_width; SUPPRESS_UNUSED_WARNING(integral_width);
     _unpublished_store_output_integral_t* output_integral = &self->_lf_output_integral;
     _unpublished_store_sw_t* sw = &self->_lf_sw;
-    #line 522 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p2.lf"
+    #line 550 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p2.lf"
     // stored_integral = integral -> value;
     tuple t;
     strncpy(t.key, "integral", sizeof(t.key));
     t.value = integral -> value;
-    t.time = lf_time_physical_elapsed();
+    t.time = lf_time_logical_elapsed() + TIME_PERIOD * 1000000;
     lf_set(output_integral, t);
     add_successful_writes(1);
     // lf_print("successful_writes: %d\n", successful_writes);
     lf_set(sw, successful_writes);
     // stored_integral = t; // Store the value in state
     // lf_print("Stored integral: %f\n", output_integral->value.value);
-#line 49 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p2/_unpublished_store.c"
+#line 49 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p2/_unpublished_store.c"
 }
 #include "include/api/reaction_macros_undef.h"
 #include "include/api/reaction_macros.h"
@@ -55,19 +55,19 @@ void _unpublished_storereaction_function_2(void* instance_args) {
     int global_target_width = self->_lf_global_target_width; SUPPRESS_UNUSED_WARNING(global_target_width);
     _unpublished_store_output_target_t* output_target = &self->_lf_output_target;
     _unpublished_store_sw_t* sw = &self->_lf_sw;
-    #line 582 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src/federate__p2.lf"
+    #line 610 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src/federate__p2.lf"
     // stored_target = global_target -> value;
     tuple t;
     strncpy(t.key, "target", sizeof(t.key));
     t.value = global_target->value;
-    t.time = lf_time_physical_elapsed();
+    t.time = lf_time_logical_elapsed() + TIME_PERIOD * 1000000;
     lf_set(output_target, t);
     add_successful_writes(1);
     // lf_print("successful_writes: %d\n", successful_writes);
     lf_set(sw, successful_writes);
     // stored_target = t; // Store the value in state
     // lf_print("Stored target: %f\n", output_target->value.value);
-#line 71 "/mnt/c/Users/32739/LF/LF-InConcReTeS/fed-gen/inverted_pendulum/src-gen/federate__p2/_unpublished_store.c"
+#line 71 "/mnt/c/Users/32739/lf/lf-inconcretes/fed-gen/inverted_pendulum/src-gen/federate__p2/_unpublished_store.c"
 }
 #include "include/api/reaction_macros_undef.h"
 _unpublished_store_self_t* new__unpublished_store() {
